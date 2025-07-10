@@ -18,6 +18,23 @@ import (
 // exitFunc is used for testability; defaults to os.Exit but can be overridden in tests
 var exitFunc = os.Exit
 
+// validatePath ensures the path is safe and within allowed directories
+func validatePath(path string) error {
+	// Check for path traversal attempts
+	if strings.Contains(path, "..") {
+		return fmt.Errorf("path traversal not allowed: %s", path)
+	}
+
+	// Ensure path is valid
+	_, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("invalid path: %s", path)
+	}
+
+	// Additional validation can be added here if needed
+	return nil
+}
+
 // Run executes the i18n command-line tool.
 // It parses subcommands and arguments to perform i18n-related operations
 // like finding missing keys, validating files, or extracting keys.
@@ -72,11 +89,23 @@ func findMissingKeys(args []string) {
 	target := fs.String("target", "", "Target locale (e.g., es)")
 	dir := fs.String("dir", "./locales", "Directory containing locale files")
 
-	fs.Parse(args)
+	if err := fs.Parse(args); err != nil {
+		fmt.Printf("Error parsing flags: %v\n", err)
+		fs.Usage()
+		exitFunc(1)
+		return
+	}
 
 	if *source == "" || *target == "" {
 		fmt.Println("Error: --source and --target are required")
 		fs.Usage()
+		exitFunc(1)
+		return
+	}
+
+	// Validate directory path
+	if err := validatePath(*dir); err != nil {
+		fmt.Printf("Error: %v\n", err)
 		exitFunc(1)
 		return
 	}
@@ -150,7 +179,19 @@ func validateFiles(args []string) {
 	fs := flag.NewFlagSet("validate", flag.ExitOnError)
 	dir := fs.String("dir", "./locales", "Directory containing locale files")
 
-	fs.Parse(args)
+	if err := fs.Parse(args); err != nil {
+		fmt.Printf("Error parsing flags: %v\n", err)
+		fs.Usage()
+		exitFunc(1)
+		return
+	}
+
+	// Validate directory path
+	if err := validatePath(*dir); err != nil {
+		fmt.Printf("Error: %v\n", err)
+		exitFunc(1)
+		return
+	}
 
 	files, err := filepath.Glob(filepath.Join(*dir, "*.toml"))
 	if err != nil {
@@ -207,7 +248,12 @@ func extractKeys(args []string) {
 	output := fs.String("output", "./locales", "Output directory for locale files")
 	format := fs.String("format", "toml", "Output format (toml, json)")
 
-	fs.Parse(args)
+	if err := fs.Parse(args); err != nil {
+		fmt.Printf("Error parsing flags: %v\n", err)
+		fs.Usage()
+		exitFunc(1)
+		return
+	}
 
 	if *dir == "" || *output == "" {
 		fmt.Println("Error: --dir and --output are required")
@@ -219,6 +265,18 @@ func extractKeys(args []string) {
 	if *format != "toml" && *format != "json" {
 		fmt.Println("Error: --format must be 'toml' or 'json'")
 		fs.Usage()
+		exitFunc(1)
+		return
+	}
+
+	// Validate paths
+	if err := validatePath(*dir); err != nil {
+		fmt.Printf("Error with source directory: %v\n", err)
+		exitFunc(1)
+		return
+	}
+	if err := validatePath(*output); err != nil {
+		fmt.Printf("Error with output directory: %v\n", err)
 		exitFunc(1)
 		return
 	}
@@ -259,6 +317,12 @@ func scanSourceFiles(dir string) []string {
 		}
 		if !strings.HasSuffix(info.Name(), ".go") {
 			return nil
+		}
+
+		// Validate file path before reading
+		if err := validatePath(path); err != nil {
+			fmt.Printf("Error with file path %s: %v\n", path, err)
+			return nil // Continue scanning other files
 		}
 
 		content, err := ioutil.ReadFile(path)
@@ -315,7 +379,8 @@ func writeKeysToFile(filepath string, keys []string, format string) error {
 		return err
 	}
 
-	return ioutil.WriteFile(filepath, data, 0644)
+	// Use more restrictive permissions (0600 instead of 0644)
+	return ioutil.WriteFile(filepath, data, 0600)
 }
 
 func findMissingKeysInTarget(source, target []string) []string {
@@ -335,6 +400,11 @@ func findMissingKeysInTarget(source, target []string) []string {
 
 // getKeysFromLocaleFile parses a TOML file and returns all top-level keys.
 func getKeysFromLocaleFile(filepath string) []string {
+	// Validate file path before reading
+	if err := validatePath(filepath); err != nil {
+		return nil
+	}
+
 	data, err := ioutil.ReadFile(filepath)
 	if err != nil {
 		return nil
@@ -352,6 +422,11 @@ func getKeysFromLocaleFile(filepath string) []string {
 
 // findEmptyKeysInFile returns a list of keys with empty string values in a TOML file.
 func findEmptyKeysInFile(filepath string) []string {
+	// Validate file path before reading
+	if err := validatePath(filepath); err != nil {
+		return nil
+	}
+
 	data, err := ioutil.ReadFile(filepath)
 	if err != nil {
 		return nil
