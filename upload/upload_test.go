@@ -181,7 +181,9 @@ func TestProcessWithHooks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create form file: %v", err)
 	}
-	part.Write([]byte("test file content"))
+	if _, err := part.Write([]byte("test file content")); err != nil {
+		t.Fatalf("Failed to write test file content: %v", err)
+	}
 	writer.Close()
 
 	req := httptest.NewRequest("POST", "/upload", &buf)
@@ -232,7 +234,9 @@ func TestProcessWithContext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create form file: %v", err)
 	}
-	part.Write([]byte("test file content"))
+	if _, err := part.Write([]byte("test file content")); err != nil {
+		t.Fatalf("Failed to write test file content: %v", err)
+	}
 	writer.Close()
 
 	req := httptest.NewRequest("POST", "/upload", &buf)
@@ -281,7 +285,9 @@ func TestProcessSingleWithContext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create form file: %v", err)
 	}
-	part.Write([]byte("test file content"))
+	if _, err := part.Write([]byte("test file content")); err != nil {
+		t.Fatalf("Failed to write test file content: %v", err)
+	}
 	writer.Close()
 
 	req := httptest.NewRequest("POST", "/upload", &buf)
@@ -337,7 +343,9 @@ func TestHookExecutionOrder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create form file: %v", err)
 	}
-	part.Write([]byte("test file content"))
+	if _, err := part.Write([]byte("test file content")); err != nil {
+		t.Fatalf("Failed to write test file content: %v", err)
+	}
 	writer.Close()
 
 	req := httptest.NewRequest("POST", "/upload", &buf)

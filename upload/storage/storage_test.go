@@ -603,7 +603,9 @@ func TestStorageErrorHandling(t *testing.T) {
 		// Test with read-only directory
 		tempDir := t.TempDir()
 		readOnlyDir := filepath.Join(tempDir, "readonly")
-		os.Mkdir(readOnlyDir, 0444) // Read-only
+		if err := os.Mkdir(readOnlyDir, 0444); err != nil {
+			t.Fatalf("Failed to create read-only directory: %v", err)
+		}
 
 		localStorage := NewLocal(readOnlyDir)
 
@@ -1104,10 +1106,14 @@ func TestStorageSecurity(t *testing.T) {
 
 		// Create a symlink to a sensitive file
 		sensitiveFile := filepath.Join(t.TempDir(), "sensitive.txt")
-		os.WriteFile(sensitiveFile, []byte("sensitive data"), 0644)
+		if err := os.WriteFile(sensitiveFile, []byte("sensitive data"), 0644); err != nil {
+			t.Fatalf("Failed to create sensitive file: %v", err)
+		}
 
 		symlinkFile := filepath.Join(t.TempDir(), "symlink.txt")
-		os.Symlink(sensitiveFile, symlinkFile)
+		if err := os.Symlink(sensitiveFile, symlinkFile); err != nil {
+			t.Fatalf("Failed to create symlink: %v", err)
+		}
 
 		// Try to store through symlink
 		_, err := localStorage.Store(symlinkFile, strings.NewReader("malicious"))

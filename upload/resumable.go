@@ -304,7 +304,10 @@ func (rp *ResumableProcessor) handleInitiateUpload(w http.ResponseWriter, r *htt
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(session)
+	if err := json.NewEncoder(w).Encode(session); err != nil {
+		http.Error(w, "Failed to encode session", http.StatusInternalServerError)
+		return
+	}
 }
 
 // handleUploadChunk handles chunk upload
@@ -372,7 +375,11 @@ func (rp *ResumableProcessor) handleAbortUpload(w http.ResponseWriter, r *http.R
 func (rp *ResumableProcessor) generateFileID() string {
 	// Generate a unique file ID
 	randomBytes := make([]byte, 16)
-	io.ReadFull(rand.Reader, randomBytes)
+	if _, err := io.ReadFull(rand.Reader, randomBytes); err != nil {
+		// Fallback to timestamp-based ID if random generation fails
+		timestamp := time.Now().UnixNano()
+		return fmt.Sprintf("%d", timestamp)
+	}
 	return hex.EncodeToString(randomBytes)
 }
 

@@ -20,7 +20,10 @@ func DefaultValidationErrorHandler(w http.ResponseWriter, r *http.Request, error
 		"details": errors,
 	}
 
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }
 
 // ValidationMiddleware returns middleware that validates request data against a struct
@@ -287,7 +290,10 @@ func JSONValidationErrorHandler(w http.ResponseWriter, r *http.Request, errors V
 		"errors":  errorList,
 	}
 
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }
 
 // HTMLValidationErrorHandler returns an HTML error handler that renders
@@ -358,5 +364,7 @@ func HTMLValidationErrorHandler(w http.ResponseWriter, r *http.Request, errors V
 </body>
 </html>`
 
-	w.Write([]byte(html))
+	if _, err := w.Write([]byte(html)); err != nil {
+		// Optionally log the error
+	}
 }

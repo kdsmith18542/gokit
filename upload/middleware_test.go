@@ -33,7 +33,9 @@ func TestUploadMiddleware(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create form file: %v", err)
 		}
-		part.Write([]byte("test file content"))
+		if _, err := part.Write([]byte("test file content")); err != nil {
+			t.Fatalf("Failed to write test file content: %v", err)
+		}
 		writer.Close()
 
 		req := httptest.NewRequest("POST", "/upload", &buf)
@@ -83,7 +85,9 @@ func TestUploadMiddleware(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create form file: %v", err)
 		}
-		part.Write(make([]byte, 2048)) // 2KB file
+		if _, err := part.Write(make([]byte, 2048)); err != nil {
+			t.Fatalf("Failed to write large file content: %v", err)
+		}
 		writer.Close()
 
 		req := httptest.NewRequest("POST", "/upload", &buf)
@@ -132,7 +136,9 @@ func TestSingleUploadMiddleware(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create form file: %v", err)
 	}
-	part.Write([]byte("test file content"))
+	if _, err := part.Write([]byte("test file content")); err != nil {
+		t.Fatalf("Failed to write test file content: %v", err)
+	}
 	writer.Close()
 
 	req := httptest.NewRequest("POST", "/upload", &buf)
@@ -183,7 +189,9 @@ func TestUploadMiddlewareWithContext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create form file: %v", err)
 	}
-	part.Write([]byte("test file content"))
+	if _, err := part.Write([]byte("test file content")); err != nil {
+		t.Fatalf("Failed to write test file content: %v", err)
+	}
 	writer.Close()
 
 	req := httptest.NewRequest("POST", "/upload", &buf)

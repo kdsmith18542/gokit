@@ -343,7 +343,11 @@ func (p *Processor) isAllowedExtension(ext string) bool {
 func (p *Processor) generateFilename(originalName string) string {
 	ext := filepath.Ext(originalName)
 	randomBytes := make([]byte, 16)
-	rand.Read(randomBytes)
+	if _, err := rand.Read(randomBytes); err != nil {
+		// Fallback to timestamp-based filename if random generation fails
+		timestamp := time.Now().UnixNano()
+		return fmt.Sprintf("%d%s", timestamp, ext)
+	}
 	randomHex := hex.EncodeToString(randomBytes)
 	timestamp := time.Now().Unix()
 	return fmt.Sprintf("%d_%s%s", timestamp, randomHex, ext)

@@ -307,51 +307,7 @@ func (t *Translator) FormatNumber(number float64) string {
 
 	// Add thousands separators
 	if format.Grouping != nil && len(format.Grouping) > 0 {
-		var result strings.Builder
-		length := len(integerPart)
-
-		// Handle complex grouping patterns like [2, 3] (first 2 digits, then groups of 3)
-		for i, digit := range integerPart {
-			if i > 0 {
-				// Determine if we should add a separator
-				shouldAddSeparator := false
-				if len(format.Grouping) == 1 {
-					// Simple grouping: every N digits
-					groupSize := format.Grouping[0]
-					if (length-i)%groupSize == 0 {
-						shouldAddSeparator = true
-					}
-				} else {
-					// Complex grouping: first group, then subsequent groups
-					// For [2, 3], we want: 12_34_567
-					// i=0: no separator (first digit)
-					// i=1: no separator (second digit)
-					// i=2: separator (after first group of 2)
-					// i=3: no separator
-					// i=4: no separator
-					// i=5: separator (after first group of 3)
-					// i=6: no separator
-
-					if i == format.Grouping[0] {
-						// After first group
-						shouldAddSeparator = true
-					} else if i > format.Grouping[0] {
-						// After first group, use the second grouping value
-						groupSize := format.Grouping[1]
-						remainingDigits := length - i
-						if remainingDigits%groupSize == 0 {
-							shouldAddSeparator = true
-						}
-					}
-				}
-
-				if shouldAddSeparator {
-					result.WriteString(format.ThousandsSeparator)
-				}
-			}
-			result.WriteRune(digit)
-		}
-		integerPart = result.String()
+		integerPart = addNumberGrouping(integerPart, format)
 	}
 
 	// Combine parts
@@ -401,34 +357,7 @@ func (t *Translator) formatNumberWithFormat(number float64, format NumberFormat)
 
 	// Add thousands separators
 	if format.Grouping != nil && len(format.Grouping) > 0 {
-		var result strings.Builder
-		length := len(integerPart)
-		for i, digit := range integerPart {
-			if i > 0 {
-				shouldAddSeparator := false
-				if len(format.Grouping) == 1 {
-					groupSize := format.Grouping[0]
-					if (length-i)%groupSize == 0 {
-						shouldAddSeparator = true
-					}
-				} else {
-					if i == format.Grouping[0] {
-						shouldAddSeparator = true
-					} else if i > format.Grouping[0] {
-						groupSize := format.Grouping[1]
-						remainingDigits := length - i
-						if remainingDigits%groupSize == 0 {
-							shouldAddSeparator = true
-						}
-					}
-				}
-				if shouldAddSeparator {
-					result.WriteString(format.ThousandsSeparator)
-				}
-			}
-			result.WriteRune(digit)
-		}
-		integerPart = result.String()
+		integerPart = addNumberGrouping(integerPart, format)
 	}
 
 	// Combine parts
@@ -1292,4 +1221,39 @@ func (m *Manager) SetDefaultFormats() {
 		Medium: "15:04:05",
 		Long:   "15:04:05 MST",
 	})
+}
+
+// addNumberGrouping applies thousands/grouping separators to the integer part of a number string
+func addNumberGrouping(integerPart string, format NumberFormat) string {
+	if format.Grouping != nil && len(format.Grouping) > 0 {
+		var result strings.Builder
+		length := len(integerPart)
+		for i, digit := range integerPart {
+			if i > 0 {
+				shouldAddSeparator := false
+				if len(format.Grouping) == 1 {
+					groupSize := format.Grouping[0]
+					if (length-i)%groupSize == 0 {
+						shouldAddSeparator = true
+					}
+				} else {
+					if i == format.Grouping[0] {
+						shouldAddSeparator = true
+					} else if i > format.Grouping[0] {
+						groupSize := format.Grouping[1]
+						remainingDigits := length - i
+						if remainingDigits%groupSize == 0 {
+							shouldAddSeparator = true
+						}
+					}
+				}
+				if shouldAddSeparator {
+					result.WriteString(format.ThousandsSeparator)
+				}
+			}
+			result.WriteRune(digit)
+		}
+		return result.String()
+	}
+	return integerPart
 }

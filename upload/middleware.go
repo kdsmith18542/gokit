@@ -19,7 +19,10 @@ func DefaultUploadErrorHandler(w http.ResponseWriter, r *http.Request, err error
 		"message": err.Error(),
 	}
 
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }
 
 // UploadMiddleware returns middleware that processes file uploads and stores
@@ -94,29 +97,13 @@ func DefaultUploadErrorHandler(w http.ResponseWriter, r *http.Request, err error
 // - Context injection for easy access in handlers
 // - Custom error handling for different response formats
 func UploadMiddleware(processor *Processor, fieldName string, errorHandler UploadErrorHandler) func(http.Handler) http.Handler {
-	if errorHandler == nil {
-		errorHandler = DefaultUploadErrorHandler
-	}
-
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Process the upload
-			results, err := processor.Process(r, fieldName)
-
-			if err != nil {
-				// Upload failed, call error handler
-				errorHandler(w, r, err)
-				return
-			}
-
-			// Upload succeeded, store results in context
-			ctx := context.WithValue(r.Context(), "upload_results", results)
-			r = r.WithContext(ctx)
-
-			// Call next handler
-			next.ServeHTTP(w, r)
-		})
-	}
+	return sharedUploadMiddleware(
+		func(r *http.Request) (interface{}, error) {
+			return processor.Process(r, fieldName)
+		},
+		"upload_results",
+		errorHandler,
+	)
 }
 
 // UploadResultsFromContext retrieves the upload results from the request context.
@@ -251,29 +238,13 @@ func MustUploadResultsFromContext(ctx context.Context) []Result {
 // - You're building single-file upload features (avatar, profile picture, etc.)
 // - You want type safety for single file operations
 func SingleUploadMiddleware(processor *Processor, fieldName string, errorHandler UploadErrorHandler) func(http.Handler) http.Handler {
-	if errorHandler == nil {
-		errorHandler = DefaultUploadErrorHandler
-	}
-
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Process the single upload
-			result, err := processor.ProcessSingle(r, fieldName)
-
-			if err != nil {
-				// Upload failed, call error handler
-				errorHandler(w, r, err)
-				return
-			}
-
-			// Upload succeeded, store result in context
-			ctx := context.WithValue(r.Context(), "upload_result", result)
-			r = r.WithContext(ctx)
-
-			// Call next handler
-			next.ServeHTTP(w, r)
-		})
-	}
+	return sharedUploadMiddleware(
+		func(r *http.Request) (interface{}, error) {
+			return processor.ProcessSingle(r, fieldName)
+		},
+		"upload_result",
+		errorHandler,
+	)
 }
 
 // SingleUploadResultFromContext retrieves the single upload result from the request context.
@@ -457,7 +428,10 @@ func JSONUploadErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
 		"error":   err.Error(),
 	}
 
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }
 
 // HTMLUploadErrorHandler returns an HTML error handler that renders
@@ -505,7 +479,9 @@ func JSONUploadErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
 //	    <p><a href="/">Go Home</a></p>
 //	</body>
 //	</html>`
-//	    w.Write([]byte(html))
+//	    if _, err := w.Write([]byte(html)); err != nil {
+//	        // Optionally log the error
+//	    }
 //	}
 //
 // The HTML output includes:
@@ -542,7 +518,9 @@ func HTMLUploadErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
 </body>
 </html>`
 
-	w.Write([]byte(html))
+	if _, err := w.Write([]byte(html)); err != nil {
+		// Optionally log the error
+	}
 }
 
 // UploadSuccessHandler returns middleware that automatically responds with
@@ -568,7 +546,10 @@ func UploadSuccessHandler(next http.Handler) http.Handler {
 					"files":   results,
 				}
 
-				json.NewEncoder(w).Encode(response)
+				if err := json.NewEncoder(w).Encode(response); err != nil {
+					http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+					return
+				}
 			}
 		}
 	})
@@ -588,4 +569,23 @@ func (rc *responseCapture) Write(data []byte) (int, error) {
 func (rc *responseCapture) WriteHeader(statusCode int) {
 	rc.written = true
 	rc.ResponseWriter.WriteHeader(statusCode)
+}
+
+// sharedUploadMiddleware handles the common logic for upload middlewares
+func sharedUploadMiddleware(process func(*http.Request) (interface{}, error), contextKey string, errorHandler UploadErrorHandler) func(http.Handler) http.Handler {
+	if errorHandler == nil {
+		errorHandler = DefaultUploadErrorHandler
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			result, err := process(r)
+			if err != nil {
+				errorHandler(w, r, err)
+				return
+			}
+			ctx := context.WithValue(r.Context(), contextKey, result)
+			r = r.WithContext(ctx)
+			next.ServeHTTP(w, r)
+		})
+	}
 }

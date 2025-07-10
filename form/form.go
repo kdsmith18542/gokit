@@ -271,65 +271,30 @@ func DecodeAndValidateWithContext(ctx context.Context, r *http.Request, v interf
 		return errors
 	}
 
-	// First pass: collect all field values and apply sanitizers
-	fieldValues := make(map[string]string)
-	typ := val.Type()
-	for i := 0; i < val.NumField(); i++ {
-		field := val.Field(i)
-		fieldType := typ.Field(i)
-		formTag := fieldType.Tag.Get("form")
-		if formTag == "" {
-			formTag = strings.ToLower(fieldType.Name)
+	// Convert request data to form-like structure
+	formData := make(map[string][]string)
+	if r.MultipartForm != nil {
+		for key, values := range r.MultipartForm.Value {
+			formData[key] = values
 		}
-		var value string
-		if r.MultipartForm != nil {
-			if values := r.MultipartForm.Value[formTag]; len(values) > 0 {
-				value = values[0]
-			}
-		} else {
-			value = r.FormValue(formTag)
-		}
-		sanitizeTag := fieldType.Tag.Get("sanitize")
-		if sanitizeTag != "" {
-			value = applySanitizers(value, sanitizeTag)
-		}
-		fieldValues[formTag] = value
-		if field.CanSet() {
-			setFieldValue(field, value)
+	} else {
+		for key, values := range r.Form {
+			formData[key] = values
 		}
 	}
+
+	// First pass: collect all field values and apply sanitizers
+	fieldValues := processFormFields(val, formData)
 
 	if obs := getObserver(); obs != nil {
 		obs.OnDecodeEnd(ctx, formName, nil)
 		obs.OnValidationStart(ctx, formName)
 	}
 
-	validationContext := ValidationContext{values: fieldValues}
-	for i := 0; i < val.NumField(); i++ {
-		fieldType := typ.Field(i)
-		formTag := fieldType.Tag.Get("form")
-		if formTag == "" {
-			formTag = strings.ToLower(fieldType.Name)
-		}
-		value := fieldValues[formTag]
-		validateTag := fieldType.Tag.Get("validate")
-		if validateTag != "" {
-			fieldErrors := validateFieldWithContext(value, validateTag, validationContext, fieldType.Type.Kind())
-			if len(fieldErrors) > 0 {
-				errors[formTag] = fieldErrors
-			}
-		}
-	}
+	// Second pass: validate fields
+	errors = validateFormFields(val, fieldValues)
 
-	duration := time.Since(start)
-	if obs := getObserver(); obs != nil {
-		obs.OnValidationEnd(ctx, formName, errors)
-	}
-
-	// Update the formObserver to include duration
-	if _, ok := observer.(*formObserver); ok {
-		observability.GetObserver().OnFormValidationEnd(ctx, formName, len(errors), duration)
-	}
+	handleFormObservability(ctx, formName, errors, start)
 
 	return errors
 }
@@ -406,7 +371,7 @@ func builtinValidatorWithKind(value, param string, kind reflect.Kind, validatorN
 		if kind == reflect.Int || kind == reflect.Int8 || kind == reflect.Int16 || kind == reflect.Int32 || kind == reflect.Int64 || kind == reflect.Uint || kind == reflect.Uint8 || kind == reflect.Uint16 || kind == reflect.Uint32 || kind == reflect.Uint64 || kind == reflect.Float32 || kind == reflect.Float64 {
 			num, err := strconv.ParseFloat(value, 64)
 			if err != nil {
-				return "Must be a number"
+				return ErrMustBeNumber
 			}
 			if num < minVal {
 				return fmt.Sprintf("Must be at least %v", param)
@@ -426,7 +391,7 @@ func builtinValidatorWithKind(value, param string, kind reflect.Kind, validatorN
 		if kind == reflect.Int || kind == reflect.Int8 || kind == reflect.Int16 || kind == reflect.Int32 || kind == reflect.Int64 || kind == reflect.Uint || kind == reflect.Uint8 || kind == reflect.Uint16 || kind == reflect.Uint32 || kind == reflect.Uint64 || kind == reflect.Float32 || kind == reflect.Float64 {
 			num, err := strconv.ParseFloat(value, 64)
 			if err != nil {
-				return "Must be a number"
+				return ErrMustBeNumber
 			}
 			if num > maxVal {
 				return fmt.Sprintf("Must be no more than %v", param)
@@ -478,7 +443,7 @@ func setFieldValue(field reflect.Value, value string) {
 var builtinValidators = map[string]func(value, param string) string{
 	"required": func(value, param string) string {
 		if strings.TrimSpace(value) == "" {
-			return "This field is required"
+			return ErrFieldRequired
 		}
 		return ""
 	},
@@ -488,7 +453,7 @@ var builtinValidators = map[string]func(value, param string) string{
 		}
 		emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 		if !emailRegex.MatchString(value) {
-			return "Invalid email format"
+			return ErrInvalidEmail
 		}
 		return ""
 	},
@@ -524,7 +489,7 @@ var builtinValidators = map[string]func(value, param string) string{
 		}
 		urlRegex := regexp.MustCompile(`^https?://[^\s/$.?#].[^\s]*$`)
 		if !urlRegex.MatchString(value) {
-			return "Invalid URL format"
+			return ErrInvalidURL
 		}
 		return ""
 	},
@@ -535,7 +500,7 @@ var builtinValidators = map[string]func(value, param string) string{
 		if _, err := strconv.ParseFloat(value, 64); err == nil {
 			return ""
 		}
-		return "Must be a number"
+		return ErrMustBeNumber
 	},
 	"alpha": func(value, param string) string {
 		if value == "" {
@@ -543,7 +508,7 @@ var builtinValidators = map[string]func(value, param string) string{
 		}
 		for _, char := range value {
 			if !unicode.IsLetter(char) {
-				return "Must contain only letters"
+				return ErrMustBeAlpha
 			}
 		}
 		return ""
@@ -554,7 +519,7 @@ var builtinValidators = map[string]func(value, param string) string{
 		}
 		for _, char := range value {
 			if !unicode.IsLetter(char) && !unicode.IsNumber(char) {
-				return "Must contain only letters and numbers"
+				return ErrMustBeAlphanumeric
 			}
 		}
 		return ""
@@ -575,14 +540,14 @@ var builtinContextValidators = map[string]ContextValidator{
 					expectedValue := parts[1]
 					actualValue := context.Get(fieldName)
 					if actualValue == expectedValue {
-						return "This field is required"
+						return ErrFieldRequired
 					}
 				}
 			} else {
 				// Check if the specified field is not empty
 				otherValue := context.Get(param)
 				if strings.TrimSpace(otherValue) != "" {
-					return "This field is required"
+					return ErrFieldRequired
 				}
 			}
 		}
@@ -598,14 +563,14 @@ var builtinContextValidators = map[string]ContextValidator{
 					exemptValue := parts[1]
 					actualValue := context.Get(fieldName)
 					if actualValue != exemptValue {
-						return "This field is required"
+						return ErrFieldRequired
 					}
 				}
 			} else {
 				// If no value specified, check if the field is empty
 				otherValue := context.Get(param)
 				if strings.TrimSpace(otherValue) == "" {
-					return "This field is required"
+					return ErrFieldRequired
 				}
 			}
 		}
@@ -640,7 +605,7 @@ var builtinContextValidators = map[string]ContextValidator{
 		}
 		val, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			return "Must be a number"
+			return ErrMustBeNumber
 		}
 		otherValue := context.Get(param)
 		if otherValue != "" {
@@ -658,7 +623,7 @@ var builtinContextValidators = map[string]ContextValidator{
 		}
 		val, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			return "Must be a number"
+			return ErrMustBeNumber
 		}
 		otherValue := context.Get(param)
 		if otherValue != "" {
@@ -676,7 +641,7 @@ var builtinContextValidators = map[string]ContextValidator{
 		}
 		val, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			return "Must be a number"
+			return ErrMustBeNumber
 		}
 		otherValue := context.Get(param)
 		if otherValue != "" {
@@ -694,7 +659,7 @@ var builtinContextValidators = map[string]ContextValidator{
 		}
 		val, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			return "Must be a number"
+			return ErrMustBeNumber
 		}
 		otherValue := context.Get(param)
 		if otherValue != "" {
@@ -854,7 +819,7 @@ func init() {
 	// Register default built-in validators and sanitizers
 	RegisterValidator("required", func(value string) string {
 		if strings.TrimSpace(value) == "" {
-			return "This field is required"
+			return ErrFieldRequired
 		}
 		return ""
 	})
@@ -865,7 +830,7 @@ func init() {
 		}
 		emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 		if !emailRegex.MatchString(value) {
-			return "Invalid email format"
+			return ErrInvalidEmail
 		}
 		return ""
 	})
@@ -876,7 +841,7 @@ func init() {
 		}
 		urlRegex := regexp.MustCompile(`^(http|https)://[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}(/\S*)?$`)
 		if !urlRegex.MatchString(value) {
-			return "Invalid URL format"
+			return ErrInvalidURL
 		}
 		return ""
 	})
@@ -909,7 +874,7 @@ func init() {
 		val1, err1 := strconv.ParseFloat(value, 64)
 		val2, err2 := strconv.ParseFloat(otherValue, 64)
 		if err1 != nil || err2 != nil {
-			return "Must be a number"
+			return ErrMustBeNumber
 		}
 		if val1 <= val2 {
 			return fmt.Sprintf("Must be greater than %s", param)
@@ -925,7 +890,7 @@ func init() {
 		val1, err1 := strconv.ParseFloat(value, 64)
 		val2, err2 := strconv.ParseFloat(otherValue, 64)
 		if err1 != nil || err2 != nil {
-			return "Must be a number"
+			return ErrMustBeNumber
 		}
 		if val1 >= val2 {
 			return fmt.Sprintf("Must be less than %s", param)

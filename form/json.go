@@ -8,8 +8,6 @@ import (
 	"reflect"
 	"strings"
 	"time"
-
-	"github.com/kdsmith18542/gokit/observability"
 )
 
 // DecodeAndValidateJSON decodes JSON data from an io.Reader and validates it against a struct.
@@ -71,33 +69,7 @@ func DecodeAndValidateJSON(ctx context.Context, reader io.Reader, v interface{})
 	}
 
 	// First pass: collect all field values and apply sanitizers
-	fieldValues := make(map[string]string)
-	typ := val.Type()
-	for i := 0; i < val.NumField(); i++ {
-		field := val.Field(i)
-		fieldType := typ.Field(i)
-		formTag := fieldType.Tag.Get("form")
-		if formTag == "" {
-			formTag = strings.ToLower(fieldType.Name)
-		}
-
-		var value string
-		if values := formData[formTag]; len(values) > 0 {
-			value = values[0]
-		}
-
-		sanitizeTag := fieldType.Tag.Get("sanitize")
-		if sanitizeTag != "" {
-			value = applySanitizers(value, sanitizeTag)
-		}
-
-		fieldValues[formTag] = value
-		// Also store by lowercase field name for cross-field validation
-		fieldValues[strings.ToLower(fieldType.Name)] = value
-		if field.CanSet() {
-			setFieldValue(field, value)
-		}
-	}
+	fieldValues := processFormFields(val, formData)
 
 	if obs := getObserver(); obs != nil {
 		obs.OnDecodeEnd(ctx, formName, nil)
@@ -105,32 +77,9 @@ func DecodeAndValidateJSON(ctx context.Context, reader io.Reader, v interface{})
 	}
 
 	// Second pass: validate fields
-	validationContext := ValidationContext{values: fieldValues}
-	for i := 0; i < val.NumField(); i++ {
-		fieldType := typ.Field(i)
-		formTag := fieldType.Tag.Get("form")
-		if formTag == "" {
-			formTag = strings.ToLower(fieldType.Name)
-		}
-		value := fieldValues[formTag]
-		validateTag := fieldType.Tag.Get("validate")
-		if validateTag != "" {
-			fieldErrors := validateFieldWithContext(value, validateTag, validationContext, fieldType.Type.Kind())
-			if len(fieldErrors) > 0 {
-				errors[formTag] = fieldErrors
-			}
-		}
-	}
+	errors = validateFormFields(val, fieldValues)
 
-	duration := time.Since(start)
-	if obs := getObserver(); obs != nil {
-		obs.OnValidationEnd(ctx, formName, errors)
-	}
-
-	// Update the formObserver to include duration
-	if _, ok := observer.(*formObserver); ok {
-		observability.GetObserver().OnFormValidationEnd(ctx, formName, len(errors), duration)
-	}
+	handleFormObservability(ctx, formName, errors, start)
 
 	return errors
 }
@@ -166,52 +115,13 @@ func DecodeAndValidateMap(ctx context.Context, data map[string]interface{}, v in
 	}
 
 	// Validate struct
-	val := reflect.ValueOf(v)
-	if val.Kind() != reflect.Ptr || val.IsNil() {
-		errors["_struct"] = []string{"Target must be a non-nil pointer to struct"}
-		if obs := getObserver(); obs != nil {
-			obs.OnDecodeEnd(ctx, formName, nil)
-		}
-		return errors
+	if structErrors := validateStructPointer(v, ctx, formName); structErrors != nil {
+		return structErrors
 	}
-
-	val = val.Elem()
-	if val.Kind() != reflect.Struct {
-		errors["_struct"] = []string{"Target must be a pointer to struct"}
-		if obs := getObserver(); obs != nil {
-			obs.OnDecodeEnd(ctx, formName, nil)
-		}
-		return errors
-	}
+	val := reflect.ValueOf(v).Elem()
 
 	// First pass: collect all field values and apply sanitizers
-	fieldValues := make(map[string]string)
-	typ := val.Type()
-	for i := 0; i < val.NumField(); i++ {
-		field := val.Field(i)
-		fieldType := typ.Field(i)
-		formTag := fieldType.Tag.Get("form")
-		if formTag == "" {
-			formTag = strings.ToLower(fieldType.Name)
-		}
-
-		var value string
-		if values := formData[formTag]; len(values) > 0 {
-			value = values[0]
-		}
-
-		sanitizeTag := fieldType.Tag.Get("sanitize")
-		if sanitizeTag != "" {
-			value = applySanitizers(value, sanitizeTag)
-		}
-
-		fieldValues[formTag] = value
-		// Also store by lowercase field name for cross-field validation
-		fieldValues[strings.ToLower(fieldType.Name)] = value
-		if field.CanSet() {
-			setFieldValue(field, value)
-		}
-	}
+	fieldValues := processFormFields(val, formData)
 
 	if obs := getObserver(); obs != nil {
 		obs.OnDecodeEnd(ctx, formName, nil)
@@ -219,32 +129,9 @@ func DecodeAndValidateMap(ctx context.Context, data map[string]interface{}, v in
 	}
 
 	// Second pass: validate fields
-	validationContext := ValidationContext{values: fieldValues}
-	for i := 0; i < val.NumField(); i++ {
-		fieldType := typ.Field(i)
-		formTag := fieldType.Tag.Get("form")
-		if formTag == "" {
-			formTag = strings.ToLower(fieldType.Name)
-		}
-		value := fieldValues[formTag]
-		validateTag := fieldType.Tag.Get("validate")
-		if validateTag != "" {
-			fieldErrors := validateFieldWithContext(value, validateTag, validationContext, fieldType.Type.Kind())
-			if len(fieldErrors) > 0 {
-				errors[formTag] = fieldErrors
-			}
-		}
-	}
+	errors = validateFormFields(val, fieldValues)
 
-	duration := time.Since(start)
-	if obs := getObserver(); obs != nil {
-		obs.OnValidationEnd(ctx, formName, errors)
-	}
-
-	// Update the formObserver to include duration
-	if _, ok := observer.(*formObserver); ok {
-		observability.GetObserver().OnFormValidationEnd(ctx, formName, len(errors), duration)
-	}
+	handleFormObservability(ctx, formName, errors, start)
 
 	return errors
 }

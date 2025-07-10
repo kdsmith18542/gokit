@@ -86,7 +86,9 @@ func NewHandler(cfg EditorConfig) http.Handler {
 func serveEditorUI(w http.ResponseWriter, r *http.Request) {
 	html := editorHTML // see below
 	w.Header().Set("Content-Type", "text/html")
-	w.Write([]byte(html))
+	if _, err := w.Write([]byte(html)); err != nil {
+		// Optionally log the error
+	}
 }
 
 // handleLocales returns the list of available locales.
@@ -105,7 +107,10 @@ func (cfg EditorConfig) handleLocales(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	sort.Strings(locales)
-	json.NewEncoder(w).Encode(locales)
+	if err := json.NewEncoder(w).Encode(locales); err != nil {
+		http.Error(w, "Failed to encode locales", http.StatusInternalServerError)
+		return
+	}
 }
 
 // handleTranslations returns all translation data organized by keys and locales.
@@ -159,7 +164,10 @@ func (cfg EditorConfig) handleTranslations(w http.ResponseWriter, r *http.Reques
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		http.Error(w, "Failed to encode data", http.StatusInternalServerError)
+		return
+	}
 }
 
 // loadTOMLFile loads and parses a TOML file, returning a map of key-value pairs.
@@ -214,7 +222,10 @@ func (cfg EditorConfig) handleSave(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "saved"})
+	if err := json.NewEncoder(w).Encode(map[string]string{"status": "saved"}); err != nil {
+		http.Error(w, "Failed to encode status", http.StatusInternalServerError)
+		return
+	}
 }
 
 // saveLocaleFile saves a locale's messages to a TOML file.
@@ -241,7 +252,10 @@ func (cfg EditorConfig) saveLocaleFile(locale string, messages map[string]string
 		buffer.WriteString(fmt.Sprintf("%s = \"%s\"\n", key, escapedValue))
 	}
 
-	return os.WriteFile(filePath, []byte(buffer.String()), 0644)
+	if err := os.WriteFile(filePath, []byte(buffer.String()), 0644); err != nil {
+		return err
+	}
+	return nil
 }
 
 // editorHTML contains the embedded HTML/JS/CSS for the advanced i18n editor UI.

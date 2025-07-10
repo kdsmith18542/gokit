@@ -193,6 +193,8 @@ func BenchmarkAddLocaleFromFS(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		manager.AddLocaleFromFS(testFS, "en", "testdata/en.toml")
+		if err := manager.AddLocaleFromFS(testFS, "en", "testdata/en.toml"); err != nil {
+			b.Fatalf("Failed to add locale from FS: %v", err)
+		}
 	}
 }

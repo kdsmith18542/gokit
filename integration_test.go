@@ -124,14 +124,16 @@ func TestIntegration_CrossPackageFeatures(t *testing.T) {
 
 func setupIntegrationSuite(t *testing.T) *IntegrationTestSuite {
 	// Initialize observability
-	observability.Init(observability.Config{
+	if err := observability.Init(observability.Config{
 		ServiceName:    "gokit-integration-test",
 		ServiceVersion: "1.0.0",
 		Environment:    "test",
 		EnableTracing:  true,
 		EnableMetrics:  true,
 		EnableLogging:  true,
-	})
+	}); err != nil {
+		t.Fatalf("Failed to initialize observability: %v", err)
+	}
 
 	// Create temp directory
 	tempDir, err := os.MkdirTemp("", "gokit-integration-*")
@@ -214,7 +216,9 @@ func (suite *IntegrationTestSuite) testUserRegistration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create form file: %v", err)
 	}
-	fileWriter.Write([]byte("fake image data"))
+	if _, err := fileWriter.Write([]byte("fake image data")); err != nil {
+		t.Fatalf("Failed to write fake image data: %v", err)
+	}
 
 	writer.Close()
 
@@ -259,7 +263,9 @@ func (suite *IntegrationTestSuite) testUserRegistration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create form file for avatar: %v", err)
 	}
-	fileWriter.Write([]byte("fake image data"))
+	if _, err := fileWriter.Write([]byte("fake image data")); err != nil {
+		t.Fatalf("Failed to write fake image data: %v", err)
+	}
 	writer.Close()
 
 	req = httptest.NewRequest("POST", "/upload/avatar", body) // Use a dedicated endpoint for avatar upload
