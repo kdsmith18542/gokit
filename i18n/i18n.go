@@ -53,6 +53,30 @@ import (
 	"time"
 )
 
+// Constants for commonly used strings
+const (
+	// Plural forms
+	PluralOne   = "one"
+	PluralTwo   = "two"
+	PluralFew   = "few"
+	PluralMany  = "many"
+	PluralOther = "other"
+	PluralZero  = "zero"
+
+	// Format types
+	FormatShort  = "short"
+	FormatLong   = "long"
+	FormatMedium = "medium"
+
+	// Fallback formats
+	FallbackDateShort  = "01/02/2006"
+	FallbackDateLong   = "January 2, 2006"
+	FallbackDateMedium = "Jan 2, 2006"
+	FallbackTimeShort  = "15:04"
+	FallbackTimeLong   = "3:04:05 PM"
+	FallbackTimeMedium = "15:04:05"
+)
+
 // Manager holds all translation data and configuration.
 // It is safe for concurrent use and should be initialized once at application startup.
 type Manager struct {
@@ -682,33 +706,48 @@ func (t *Translator) ParseCurrency(formatted string) (float64, error) {
 	return t.ParseNumber(strings.TrimSpace(cleaned))
 }
 
+// getFormatWithFallback returns the format string with appropriate fallback
+func (t *Translator) getFormatWithFallback(formatType string, short, medium, long string, fallbackShort, fallbackMedium, fallbackLong string) string {
+	var format string
+	switch formatType {
+	case FormatShort:
+		format = short
+	case FormatLong:
+		format = long
+	default:
+		format = medium
+	}
+
+	if format == "" {
+		// Fallback formats
+		switch formatType {
+		case FormatShort:
+			format = fallbackShort
+		case FormatLong:
+			format = fallbackLong
+		default:
+			format = fallbackMedium
+		}
+	}
+
+	return format
+}
+
 // FormatDate formats a date according to the locale's date format
 func (t *Translator) FormatDate(date time.Time, formatType string) string {
 	if t.locale == nil {
 		return date.Format("2006-01-02")
 	}
 
-	var format string
-	switch formatType {
-	case "short":
-		format = t.locale.DateFormat.Short
-	case "long":
-		format = t.locale.DateFormat.Long
-	default:
-		format = t.locale.DateFormat.Medium
-	}
-
-	if format == "" {
-		// Fallback formats
-		switch formatType {
-		case "short":
-			format = "01/02/2006"
-		case "long":
-			format = "January 2, 2006"
-		default:
-			format = "Jan 2, 2006"
-		}
-	}
+	format := t.getFormatWithFallback(
+		formatType,
+		t.locale.DateFormat.Short,
+		t.locale.DateFormat.Medium,
+		t.locale.DateFormat.Long,
+		FallbackDateShort,
+		FallbackDateMedium,
+		FallbackDateLong,
+	)
 
 	return date.Format(format)
 }
@@ -719,27 +758,15 @@ func (t *Translator) FormatTime(time time.Time, formatType string) string {
 		return time.Format("15:04")
 	}
 
-	var format string
-	switch formatType {
-	case "short":
-		format = t.locale.TimeFormat.Short
-	case "long":
-		format = t.locale.TimeFormat.Long
-	default:
-		format = t.locale.TimeFormat.Medium
-	}
-
-	if format == "" {
-		// Fallback formats
-		switch formatType {
-		case "short":
-			format = "15:04"
-		case "long":
-			format = "3:04:05 PM"
-		default:
-			format = "15:04:05"
-		}
-	}
+	format := t.getFormatWithFallback(
+		formatType,
+		t.locale.TimeFormat.Short,
+		t.locale.TimeFormat.Medium,
+		t.locale.TimeFormat.Long,
+		FallbackTimeShort,
+		FallbackTimeMedium,
+		FallbackTimeLong,
+	)
 
 	return time.Format(format)
 }
@@ -799,88 +826,118 @@ func (t *Translator) getPluralForm(count int) string {
 	// Handle special cases for different language families
 	switch {
 	case strings.HasPrefix(localeCode, "zh"): // Chinese
-		return "other" // Chinese has no plural forms
+		return PluralOther // Chinese has no plural forms
 	case strings.HasPrefix(localeCode, "ja"): // Japanese
-		return "other" // Japanese has no plural forms
+		return PluralOther // Japanese has no plural forms
 	case strings.HasPrefix(localeCode, "ko"): // Korean
-		return "other" // Korean has no plural forms
+		return PluralOther // Korean has no plural forms
 	case strings.HasPrefix(localeCode, "th"): // Thai
-		return "other" // Thai has no plural forms
+		return PluralOther // Thai has no plural forms
 	case strings.HasPrefix(localeCode, "vi"): // Vietnamese
-		return "other" // Vietnamese has no plural forms
+		return PluralOther // Vietnamese has no plural forms
 	case strings.HasPrefix(localeCode, "ar"): // Arabic
-		// Arabic has complex plural rules
-		if count == 0 {
-			return "zero"
-		} else if count == 1 {
-			return "one"
-		} else if count == 2 {
-			return "two"
-		} else if count >= 3 && count <= 10 {
-			return "few"
-		} else if count >= 11 && count <= 99 {
-			return "many"
-		} else {
-			return "other"
-		}
+		return t.getArabicPluralForm(count)
 	case strings.HasPrefix(localeCode, "ru"): // Russian
-		// Russian plural rules
-		if count%10 == 1 && count%100 != 11 {
-			return "one"
-		} else if count%10 >= 2 && count%10 <= 4 && (count%100 < 10 || count%100 >= 20) {
-			return "few"
-		} else {
-			return "other"
-		}
+		return t.getRussianPluralForm(count)
 	case strings.HasPrefix(localeCode, "pl"): // Polish
-		// Polish plural rules
-		if count == 1 {
-			return "one"
-		} else if count%10 >= 2 && count%10 <= 4 && (count%100 < 10 || count%100 >= 20) {
-			return "few"
-		} else {
-			return "other"
-		}
+		return t.getPolishPluralForm(count)
 	case strings.HasPrefix(localeCode, "cs"): // Czech
-		// Czech plural rules
-		if count == 1 {
-			return "one"
-		} else if count >= 2 && count <= 4 {
-			return "few"
-		} else {
-			return "other"
-		}
+		return t.getCzechPluralForm(count)
 	case strings.HasPrefix(localeCode, "sk"): // Slovak
-		// Slovak plural rules
-		if count == 1 {
-			return "one"
-		} else if count >= 2 && count <= 4 {
-			return "few"
-		} else {
-			return "other"
-		}
+		return t.getSlovakPluralForm(count)
 	case strings.HasPrefix(localeCode, "sl"): // Slovenian
-		// Slovenian plural rules
-		if count%100 == 1 {
-			return "one"
-		} else if count%100 == 2 {
-			return "two"
-		} else if count%100 >= 3 && count%100 <= 4 {
-			return "few"
-		} else {
-			return "other"
-		}
+		return t.getSlovenianPluralForm(count)
 	case strings.HasPrefix(localeCode, "he"): // Hebrew
-		// Hebrew plural rules
+		return t.getHebrewPluralForm(count)
+	default:
+		// Default English-style plural rules
 		if count == 1 {
-			return "one"
-		} else if count == 2 {
-			return "two"
-		} else if count >= 3 && count <= 10 {
-			return "few"
-		} else if count >= 11 && count <= 99 {
-			return "many"
-		} else {
+			return PluralOne
+		}
+		return PluralOther
+	}
+}
+
+// Helper functions for specific language plural rules
+func (t *Translator) getArabicPluralForm(count int) string {
+	if count == 0 {
+		return PluralZero
+	} else if count == 1 {
+		return PluralOne
+	} else if count == 2 {
+		return PluralTwo
+	} else if count >= 3 && count <= 10 {
+		return PluralFew
+	} else if count >= 11 && count <= 99 {
+		return PluralMany
+	} else {
+		return PluralOther
+	}
+}
+
+func (t *Translator) getRussianPluralForm(count int) string {
+	if count%10 == 1 && count%100 != 11 {
+		return PluralOne
+	} else if count%10 >= 2 && count%10 <= 4 && (count%100 < 10 || count%100 >= 20) {
+		return PluralFew
+	} else {
+		return PluralOther
+	}
+}
+
+func (t *Translator) getPolishPluralForm(count int) string {
+	if count == 1 {
+		return PluralOne
+	} else if count%10 >= 2 && count%10 <= 4 && (count%100 < 10 || count%100 >= 20) {
+		return PluralFew
+	} else {
+		return PluralOther
+	}
+}
+
+func (t *Translator) getCzechPluralForm(count int) string {
+	if count == 1 {
+		return PluralOne
+	} else if count >= 2 && count <= 4 {
+		return PluralFew
+	} else {
+		return PluralOther
+	}
+}
+
+func (t *Translator) getSlovakPluralForm(count int) string {
+	if count == 1 {
+		return PluralOne
+	} else if count >= 2 && count <= 4 {
+		return PluralFew
+	} else {
+		return PluralOther
+	}
+}
+
+func (t *Translator) getSlovenianPluralForm(count int) string {
+	if count%100 == 1 {
+		return PluralOne
+	} else if count%100 == 2 {
+		return PluralTwo
+	} else if count%100 >= 3 && count%100 <= 4 {
+		return PluralFew
+	} else {
+		return PluralOther
+	}
+}
+
+func (t *Translator) getHebrewPluralForm(count int) string {
+	if count == 1 {
+		return PluralOne
+	} else if count == 2 {
+		return PluralTwo
+	} else if count >= 3 && count <= 10 {
+		return PluralFew
+	} else {
+		return PluralOther
+	}
+}
 			return "other"
 		}
 	case strings.HasPrefix(localeCode, "ga"): // Irish
