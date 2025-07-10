@@ -21,7 +21,7 @@ linters:
     - gocyclo
     - dupl
     - goconst
-    - gomnd
+    - mnd
     - lll
     - nakedret
     - noctx
@@ -30,6 +30,8 @@ linters:
     - tparallel
     - wastedassign
     - whitespace
+  disable:
+    - typecheck
 
 linters-settings:
   gocyclo:
@@ -57,12 +59,25 @@ issues:
   exclude-rules:
     - path: _test\.go
       linters:
-        - gomnd
+        - mnd
         - gocyclo
         - dupl
     - path: examples/
       linters:
-        - gomnd
+        - mnd
         - gocyclo
         - dupl
-        - goconst 
+        - goconst
+    # Exclude Go 1.23 standard library typecheck issues
+    - linters:
+        - typecheck
+      source: "go/pkg/mod/golang.org/toolchain@v0.0.1-go1.23.11.linux-amd64/src/"
+    - linters:
+        - typecheck
+      source: "go/pkg/mod/github.com/!burnt!sushi/toml@v1.5.0/"
+    - linters:
+        - typecheck
+      source: "go/pkg/mod/github.com/go-logr/"
+    - linters:
+        - typecheck
+      source: "go/pkg/mod/go.opentelemetry.io/otel@v1.36.0/" 
