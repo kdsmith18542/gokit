@@ -21,7 +21,7 @@ func main() {
 	})
 
 	mux := http.NewServeMux()
-	mux.Handle("/upload", upload.UploadMiddleware(processor, "file", nil)(http.HandlerFunc(uploadHandler)))
+	mux.Handle("/upload", upload.Middleware(processor, "file", nil)(http.HandlerFunc(uploadHandler)))
 	mux.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir(uploadDir))))
 
 	fmt.Println("upload middleware demo running at http://localhost:8083/upload")
@@ -32,7 +32,7 @@ func main() {
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
-	results := upload.UploadResultsFromContext(r.Context())
+	results := upload.ResultsFromContext(r.Context())
 	if results == nil || len(results) == 0 {
 		http.Error(w, "No files uploaded", http.StatusBadRequest)
 		return

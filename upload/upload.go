@@ -50,8 +50,10 @@ import (
 	"github.com/kdsmith18542/gokit/upload/storage"
 )
 
-// Hook types for post-processing
+// OnSuccessHook is a function type for post-processing after a successful upload.
 type OnSuccessHook func(ctx context.Context, result Result)
+
+// OnErrorHook is a function type for handling errors during an upload.
 type OnErrorHook func(ctx context.Context, result Result, err error)
 
 // Options configures upload validation and processing.

@@ -8,8 +8,8 @@ import (
 	"time"
 )
 
-// UploadOptions defines options for generating pre-signed upload URLs
-type UploadOptions struct {
+// PresignedOptions defines options for generating pre-signed upload URLs
+type PresignedOptions struct {
 	// Filename is the desired filename for the upload
 	Filename string
 	// ContentType is the expected MIME type of the file
@@ -39,7 +39,7 @@ type PreSignedResult struct {
 //
 // Example:
 //
-//	opts := upload.UploadOptions{
+//	opts := PresignedOptions{
 //	    Filename:    "avatar.jpg",
 //	    ContentType: "image/jpeg",
 //	    Expiration:  15 * time.Minute,
@@ -50,7 +50,7 @@ type PreSignedResult struct {
 //	    // Handle error
 //	}
 //	// Return result.URL to client for direct upload
-func (p *Processor) GenerateUploadURL(ctx context.Context, opts UploadOptions) (*PreSignedResult, error) {
+func (p *Processor) GenerateUploadURL(ctx context.Context, opts PresignedOptions) (*PreSignedResult, error) {
 	// Validate options
 	if opts.Filename == "" {
 		return nil, fmt.Errorf("filename is required")
@@ -119,12 +119,12 @@ func (p *Processor) GenerateUploadURL(ctx context.Context, opts UploadOptions) (
 //
 // Example:
 //
-//	opts := []upload.UploadOptions{
+//	opts := []PresignedOptions{
 //	    {Filename: "file1.jpg", ContentType: "image/jpeg"},
 //	    {Filename: "file2.png", ContentType: "image/png"},
 //	}
 //	results, err := processor.GenerateUploadURLs(ctx, opts)
-func (p *Processor) GenerateUploadURLs(ctx context.Context, opts []UploadOptions) ([]*PreSignedResult, error) {
+func (p *Processor) GenerateUploadURLs(ctx context.Context, opts []PresignedOptions) ([]*PreSignedResult, error) {
 	results := make([]*PreSignedResult, len(opts))
 
 	for i, opt := range opts {
@@ -143,7 +143,6 @@ func (p *Processor) GenerateUploadURLs(ctx context.Context, opts []UploadOptions
 //
 // Example:
 //
-//	// After client uploads via pre-signed URL
 //	err := processor.ValidatePreSignedUpload(ctx, "uploaded-file.jpg", fileSize, contentType)
 //	if err != nil {
 //	    // Handle validation error
@@ -172,22 +171,22 @@ func (p *Processor) ValidatePreSignedUpload(ctx context.Context, filename string
 	return nil
 }
 
-// GetUploadStatus checks the status of a file uploaded via pre-signed URL.
+// GetStatus checks the status of a file uploaded via pre-signed URL.
 // This can be used to verify if the upload completed successfully.
 //
 // Example:
 //
-//	status, err := processor.GetUploadStatus(ctx, "uploaded-file.jpg")
+//	status, err := processor.GetStatus(ctx, "uploaded-file.jpg")
 //	if err != nil {
 //	    // Handle error
 //	}
 //	if status.Exists {
 //	    // File was uploaded successfully
 //	}
-func (p *Processor) GetUploadStatus(ctx context.Context, filename string) (*UploadStatus, error) {
+func (p *Processor) GetStatus(ctx context.Context, filename string) (*PresignedStatus, error) {
 	exists := p.storage.Exists(filename)
 
-	status := &UploadStatus{
+	status := &PresignedStatus{
 		Filename: filename,
 		Exists:   exists,
 	}
@@ -203,8 +202,8 @@ func (p *Processor) GetUploadStatus(ctx context.Context, filename string) (*Uplo
 	return status, nil
 }
 
-// UploadStatus contains information about an uploaded file
-type UploadStatus struct {
+// PresignedStatus contains information about an uploaded file
+type PresignedStatus struct {
 	// Filename is the name of the uploaded file
 	Filename string
 	// Exists indicates if the file exists in storage

@@ -18,7 +18,7 @@ func setupTestLocales(t *testing.T) string {
 
 func TestLocalesAPI(t *testing.T) {
 	dir := setupTestLocales(t)
-	h := NewHandler(EditorConfig{LocalesDir: dir, Manager: nil})
+	h := NewHandler(Config{LocalesDir: dir, Manager: nil})
 	r := httptest.NewRequest("GET", "/api/locales", nil)
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
@@ -33,7 +33,7 @@ func TestLocalesAPI(t *testing.T) {
 
 func TestTranslationsAPI(t *testing.T) {
 	dir := setupTestLocales(t)
-	h := NewHandler(EditorConfig{LocalesDir: dir, Manager: nil})
+	h := NewHandler(Config{LocalesDir: dir, Manager: nil})
 	r := httptest.NewRequest("GET", "/api/translations", nil)
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
@@ -77,7 +77,7 @@ func TestTranslationsAPI(t *testing.T) {
 
 func TestSaveAPI(t *testing.T) {
 	dir := setupTestLocales(t)
-	h := NewHandler(EditorConfig{LocalesDir: dir, Manager: nil})
+	h := NewHandler(Config{LocalesDir: dir, Manager: nil})
 
 	// Create test data
 	testData := TranslationData{
@@ -131,7 +131,7 @@ func TestSaveAPI(t *testing.T) {
 
 func TestEditorUI(t *testing.T) {
 	dir := setupTestLocales(t)
-	h := NewHandler(EditorConfig{LocalesDir: dir, Manager: nil})
+	h := NewHandler(Config{LocalesDir: dir, Manager: nil})
 	r := httptest.NewRequest("GET", "/", nil)
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)

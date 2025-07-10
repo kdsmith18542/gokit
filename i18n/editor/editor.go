@@ -14,7 +14,7 @@
 // Example:
 //
 //	// Initialize the editor
-//	editor := editor.NewHandler(editor.EditorConfig{
+//	editor := editor.NewHandler(editor.Config{
 //	    LocalesDir: "./locales",
 //	    Manager:    i18nManager,
 //	})
@@ -43,9 +43,9 @@ import (
 	"github.com/kdsmith18542/gokit/i18n"
 )
 
-// EditorConfig configures the i18n editor behavior and connections.
+// Config configures the i18n editor behavior and connections.
 // This struct contains all the configuration needed to initialize the editor.
-type EditorConfig struct {
+type Config struct {
 	LocalesDir string        // Directory containing locale files (e.g., "./locales")
 	Manager    *i18n.Manager // Optional i18n manager for live reloading
 }
@@ -68,11 +68,11 @@ type TranslationData struct {
 //
 // Example:
 //
-//	editor := editor.NewHandler(editor.EditorConfig{
+//	editor := editor.NewHandler(editor.Config{
 //	    LocalesDir: "./locales",
 //	})
 //	http.Handle("/editor/", http.StripPrefix("/editor", editor))
-func NewHandler(cfg EditorConfig) http.Handler {
+func NewHandler(cfg Config) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", serveEditorUI)
 	mux.HandleFunc("/api/locales", cfg.handleLocales)
@@ -94,7 +94,7 @@ func serveEditorUI(w http.ResponseWriter, r *http.Request) {
 // handleLocales returns the list of available locales.
 // Scans the locales directory for .toml and .json files and returns their locale codes.
 // This endpoint is used by the UI to populate the locale selector.
-func (cfg EditorConfig) handleLocales(w http.ResponseWriter, r *http.Request) {
+func (cfg Config) handleLocales(w http.ResponseWriter, r *http.Request) {
 	files, err := os.ReadDir(cfg.LocalesDir)
 	if err != nil {
 		http.Error(w, "Failed to read locales dir", http.StatusInternalServerError)
@@ -115,7 +115,7 @@ func (cfg EditorConfig) handleLocales(w http.ResponseWriter, r *http.Request) {
 
 // handleTranslations returns all translation data organized by keys and locales.
 // This endpoint provides the data needed for the table-based editor interface.
-func (cfg EditorConfig) handleTranslations(w http.ResponseWriter, r *http.Request) {
+func (cfg Config) handleTranslations(w http.ResponseWriter, r *http.Request) {
 	// Get all locale files
 	files, err := os.ReadDir(cfg.LocalesDir)
 	if err != nil {
@@ -171,7 +171,7 @@ func (cfg EditorConfig) handleTranslations(w http.ResponseWriter, r *http.Reques
 }
 
 // loadTOMLFile loads and parses a TOML file, returning a map of key-value pairs.
-func (cfg EditorConfig) loadTOMLFile(filePath string) (map[string]string, error) {
+func (cfg Config) loadTOMLFile(filePath string) (map[string]string, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
@@ -198,7 +198,7 @@ func (cfg EditorConfig) loadTOMLFile(filePath string) (map[string]string, error)
 
 // handleSave saves the posted translation data.
 // Accepts JSON data with translations and saves them to the appropriate locale files.
-func (cfg EditorConfig) handleSave(w http.ResponseWriter, r *http.Request) {
+func (cfg Config) handleSave(w http.ResponseWriter, r *http.Request) {
 	var data TranslationData
 	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
 		http.Error(w, "Invalid JSON data", http.StatusBadRequest)
@@ -229,7 +229,7 @@ func (cfg EditorConfig) handleSave(w http.ResponseWriter, r *http.Request) {
 }
 
 // saveLocaleFile saves a locale's messages to a TOML file.
-func (cfg EditorConfig) saveLocaleFile(locale string, messages map[string]string) error {
+func (cfg Config) saveLocaleFile(locale string, messages map[string]string) error {
 	filePath := filepath.Join(cfg.LocalesDir, locale+".toml")
 
 	// Convert to TOML format

@@ -390,12 +390,12 @@ func (t *Translator) FormatCurrency(amount float64, currencyCode string) string 
 			return format.Symbol + " " + numberStr
 		}
 		return format.Symbol + numberStr
-	} else {
-		if format.Space {
-			return numberStr + " " + format.Symbol
-		}
-		return numberStr + format.Symbol
 	}
+
+	if format.Space {
+		return numberStr + " " + format.Symbol
+	}
+	return numberStr + format.Symbol
 }
 
 // FormatPercentage formats a number as a percentage according to the locale's number format
@@ -509,40 +509,34 @@ func (t *Translator) formatRelativeTimeFallback(target time.Time, now time.Time)
 	}
 
 	var result string
-	switch {
-	case absDuration < time.Minute:
+	if absDuration < time.Minute {
 		seconds := int(absDuration.Seconds())
+		result = fmt.Sprintf("%d seconds ago", seconds)
 		if duration < 0 {
 			result = fmt.Sprintf("in %d seconds", seconds)
-		} else {
-			result = fmt.Sprintf("%d seconds ago", seconds)
 		}
-	case absDuration < time.Hour:
+	} else if absDuration < time.Hour {
 		minutes := int(absDuration.Minutes())
+		result = fmt.Sprintf("%d minutes ago", minutes)
 		if duration < 0 {
 			result = fmt.Sprintf("in %d minutes", minutes)
-		} else {
-			result = fmt.Sprintf("%d minutes ago", minutes)
 		}
-	case absDuration < 24*time.Hour:
+	} else if absDuration < 24*time.Hour {
 		hours := int(absDuration.Hours())
+		result = fmt.Sprintf("%d hours ago", hours)
 		if duration < 0 {
 			result = fmt.Sprintf("in %d hours", hours)
-		} else {
-			result = fmt.Sprintf("%d hours ago", hours)
 		}
-	case absDuration < 7*24*time.Hour:
+	} else if absDuration < 7*24*time.Hour {
 		days := int(absDuration.Hours() / 24)
+		result = fmt.Sprintf("%d days ago", days)
 		if duration < 0 {
 			result = fmt.Sprintf("in %d days", days)
-		} else {
-			result = fmt.Sprintf("%d days ago", days)
 		}
-	default:
+	} else {
+		result = "in the past"
 		if duration < 0 {
 			result = "in the future"
-		} else {
-			result = "in the past"
 		}
 	}
 
@@ -563,18 +557,23 @@ func (t *Translator) FormatCurrencyWithCode(amount float64, currencyCode string)
 	// Format the number part using currency format settings
 	numberStr := t.formatNumberWithFormat(amount, format.NumberFormat)
 
+	var formattedCurrency string
 	// Add currency symbol and code
 	if format.Position == "before" {
 		if format.Space {
-			return format.Symbol + " " + numberStr + " (" + currencyCode + ")"
+			formattedCurrency = format.Symbol + " " + numberStr + " (" + currencyCode + ")"
+		} else {
+			formattedCurrency = format.Symbol + numberStr + " (" + currencyCode + ")"
 		}
-		return format.Symbol + numberStr + " (" + currencyCode + ")"
 	} else {
 		if format.Space {
-			return numberStr + " " + format.Symbol + " (" + currencyCode + ")"
+			formattedCurrency = numberStr + " " + format.Symbol + " (" + currencyCode + ")"
+		} else {
+			formattedCurrency = numberStr + format.Symbol + " (" + currencyCode + ")"
 		}
-		return numberStr + format.Symbol + " (" + currencyCode + ")"
 	}
+
+	return formattedCurrency
 }
 
 // ParseNumber parses a formatted number string back to float64

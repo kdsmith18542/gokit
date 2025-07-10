@@ -1,3 +1,6 @@
+// Package form provides HTTP middleware functions for Go web applications.
+// These middleware components can be chained together to add functionality
+// such as form processing, internationalization, and file uploads.
 package form
 
 import (
@@ -5,6 +8,16 @@ import (
 	"encoding/json"
 	"net/http"
 	"reflect"
+)
+
+// contextKey is a custom type for context keys to avoid collisions.
+type contextKey string
+
+const (
+	// formDataKey is the context key for form data.
+	formDataKey contextKey = "formData"
+	// validationErrorsKey is the context key for validation errors.
+	validationErrorsKey contextKey = "validationErrors"
 )
 
 // ValidationErrorHandler is a function type for handling validation errors
@@ -45,17 +58,17 @@ func DefaultValidationErrorHandler(w http.ResponseWriter, r *http.Request, error
 //	    mux := http.NewServeMux()
 //
 //	    // Basic usage with default error handler
-//	    mux.HandleFunc("/register", form.ValidationMiddleware(UserForm{}, nil)(registerHandler))
+//	    mux.HandleFunc("/register", ValidationMiddleware(UserForm{}, nil)(registerHandler))
 //
 //	    // With custom error handler
-//	    mux.HandleFunc("/api/register", form.ValidationMiddleware(UserForm{}, customErrorHandler)(apiRegisterHandler))
+//	    mux.HandleFunc("/api/register", ValidationMiddleware(UserForm{}, customErrorHandler)(apiRegisterHandler))
 //
 //	    http.ListenAndServe(":8080", mux)
 //	}
 //
 //	func registerHandler(w http.ResponseWriter, r *http.Request) {
 //	    // Get validated form from context
-//	    userForm := form.ValidatedFormFromContext(r.Context()).(*UserForm)
+//	    userForm := ValidatedFormFromContext(r.Context()).(*UserForm)
 //
 //	    // Form is already validated and populated
 //	    fmt.Printf("Email: %s, Age: %d\n", userForm.Email, userForm.Age)
@@ -63,7 +76,7 @@ func DefaultValidationErrorHandler(w http.ResponseWriter, r *http.Request, error
 //	    // Process the validated data...
 //	}
 //
-//	func customErrorHandler(w http.ResponseWriter, r *http.Request, errors form.ValidationErrors) {
+//	func customErrorHandler(w http.ResponseWriter, r *http.Request, errors ValidationErrors) {
 //	    // Custom error handling logic
 //	    w.Header().Set("Content-Type", "application/json")
 //	    w.WriteHeader(http.StatusBadRequest)
@@ -104,7 +117,7 @@ func ValidationMiddleware(formStruct interface{}, errorHandler ValidationErrorHa
 			}
 
 			// Validation succeeded, store form in context
-			ctx := context.WithValue(r.Context(), "validated_form", form)
+			ctx := context.WithValue(r.Context(), formDataKey, form)
 			r = r.WithContext(ctx)
 
 			// Call next handler
@@ -119,7 +132,7 @@ func ValidationMiddleware(formStruct interface{}, errorHandler ValidationErrorHa
 // Example:
 //
 //	func handler(w http.ResponseWriter, r *http.Request) {
-//	    form := form.ValidatedFormFromContext(r.Context())
+//	    form := ValidatedFormFromContext(r.Context())
 //	    if form == nil {
 //	        http.Error(w, "No form data", http.StatusBadRequest)
 //	        return
@@ -136,7 +149,7 @@ func ValidationMiddleware(formStruct interface{}, errorHandler ValidationErrorHa
 //	    processUser(userForm)
 //	}
 func ValidatedFormFromContext(ctx context.Context) interface{} {
-	return ctx.Value("validated_form")
+	return ctx.Value(formDataKey)
 }
 
 // MustValidatedFormFromContext retrieves the validated form from the request context.
@@ -149,45 +162,8 @@ func MustValidatedFormFromContext(ctx context.Context) interface{} {
 	return form
 }
 
-// ValidationMiddlewareWithContext returns middleware that validates request data
-// and provides context-aware validation support.
-//
-// This middleware is similar to ValidationMiddleware but uses DecodeAndValidateWithContext,
-// which provides better observability and context cancellation support. Use this version
-// when you need tracing, metrics, or context-aware validation.
-//
-// Example usage:
-//
-//	func main() {
-//	    mux := http.NewServeMux()
-//
-//	    // Use context-aware middleware for better observability
-//	    mux.HandleFunc("/api/users", form.ValidationMiddlewareWithContext(UserForm{}, nil)(createUserHandler))
-//
-//	    http.ListenAndServe(":8080", mux)
-//	}
-//
-//	func createUserHandler(w http.ResponseWriter, r *http.Request) {
-//	    // The request context is passed to validation for observability
-//	    userForm := form.ValidatedFormFromContext(r.Context()).(*UserForm)
-//
-//	    // Process with context support
-//	    ctx := r.Context()
-//	    user, err := createUser(ctx, userForm)
-//	    if err != nil {
-//	        http.Error(w, err.Error(), http.StatusInternalServerError)
-//	        return
-//	    }
-//
-//	    json.NewEncoder(w).Encode(user)
-//	}
-//
-// The context-aware version is particularly useful when:
-// - Using custom validators that make database calls
-// - Implementing observability with OpenTelemetry
-// - Handling request timeouts and cancellations
-// - Performing async validation operations
-func ValidationMiddlewareWithContext(formStruct interface{}, errorHandler ValidationErrorHandler) func(http.Handler) http.Handler {
+// ValidationMiddlewareWithContext returns middleware that validates request data and provides context-aware validation support.
+func ValidationMiddlewareWithContext(formStruct interface{}, errorHandler ValidationErrorHandler) func(next http.Handler) http.Handler {
 	if errorHandler == nil {
 		errorHandler = DefaultValidationErrorHandler
 	}
@@ -207,7 +183,7 @@ func ValidationMiddlewareWithContext(formStruct interface{}, errorHandler Valida
 			}
 
 			// Validation succeeded, store form in context
-			ctx := context.WithValue(r.Context(), "validated_form", form)
+			ctx := context.WithValue(r.Context(), formDataKey, form)
 			r = r.WithContext(ctx)
 
 			// Call next handler
@@ -254,13 +230,13 @@ func ValidationMiddlewareWithContext(formStruct interface{}, errorHandler Valida
 //	    mux := http.NewServeMux()
 //
 //	    // Use JSON error handler for API endpoints
-//	    mux.HandleFunc("/api/register", form.ValidationMiddleware(UserForm{}, form.JSONValidationErrorHandler)(apiRegisterHandler))
+//	    mux.HandleFunc("/api/register", ValidationMiddleware(UserForm{}, JSONValidationErrorHandler)(apiRegisterHandler))
 //
 //	    http.ListenAndServe(":8080", mux)
 //	}
 //
 //	func apiRegisterHandler(w http.ResponseWriter, r *http.Request) {
-//	    userForm := form.ValidatedFormFromContext(r.Context()).(*UserForm)
+//	    userForm := ValidatedFormFromContext(r.Context()).(*UserForm)
 //
 //	    // Process registration...
 //	    w.Header().Set("Content-Type", "application/json")
@@ -315,13 +291,13 @@ func JSONValidationErrorHandler(w http.ResponseWriter, r *http.Request, errors V
 //	    mux := http.NewServeMux()
 //
 //	    // Use HTML error handler for web forms
-//	    mux.HandleFunc("/contact", form.ValidationMiddleware(ContactForm{}, form.HTMLValidationErrorHandler)(contactHandler))
+//	    mux.HandleFunc("/contact", ValidationMiddleware(ContactForm{}, HTMLValidationErrorHandler)(contactHandler))
 //
 //	    http.ListenAndServe(":8080", mux)
 //	}
 //
 //	func contactHandler(w http.ResponseWriter, r *http.Request) {
-//	    contactForm := form.ValidatedFormFromContext(r.Context()).(*ContactForm)
+//	    contactForm := ValidatedFormFromContext(r.Context()).(*ContactForm)
 //
 //	    // Process contact form...
 //	    w.Header().Set("Content-Type", "text/html")

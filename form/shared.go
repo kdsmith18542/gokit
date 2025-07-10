@@ -71,7 +71,7 @@ func validateFormFields(val reflect.Value, fieldValues map[string]string) Valida
 }
 
 // validateStructPointer validates that the target is a non-nil pointer to struct
-func validateStructPointer(v interface{}, ctx context.Context, formName string) ValidationErrors {
+func validateStructPointer(ctx context.Context, v interface{}, formName string) ValidationErrors {
 	errors := make(ValidationErrors)
 
 	val := reflect.ValueOf(v)

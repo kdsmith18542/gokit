@@ -1,3 +1,6 @@
+// Package upload provides utilities for handling file uploads in Go web applications.
+// It supports various storage backends (S3, GCS, Azure, local) and includes
+// features like multipart form parsing, file validation, and resumable uploads.
 package upload
 
 import (
@@ -6,11 +9,21 @@ import (
 	"net/http"
 )
 
-// UploadErrorHandler is a function type for handling upload errors
-type UploadErrorHandler func(w http.ResponseWriter, r *http.Request, err error)
+// contextKey is a custom type for context keys to avoid collisions.
+type contextKey string
 
-// DefaultUploadErrorHandler returns a JSON error response for upload failures
-func DefaultUploadErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
+const (
+	// uploadResultsKey is the context key for multiple upload results.
+	uploadResultsKey contextKey = "uploadResults"
+	// uploadResultKey is the context key for a single upload result.
+	uploadResultKey contextKey = "uploadResult"
+)
+
+// ErrorHandler is a function type for handling upload errors.
+type ErrorHandler func(w http.ResponseWriter, r *http.Request, err error)
+
+// DefaultErrorHandler returns a JSON error response for upload failures.
+func DefaultErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusBadRequest)
 
@@ -25,7 +38,7 @@ func DefaultUploadErrorHandler(w http.ResponseWriter, r *http.Request, err error
 	}
 }
 
-// UploadMiddleware returns middleware that processes file uploads and stores
+// Middleware returns middleware that processes file uploads and stores
 // the results in the request context.
 //
 // This middleware automatically handles multipart form parsing, file validation,
@@ -42,28 +55,28 @@ func DefaultUploadErrorHandler(w http.ResponseWriter, r *http.Request, err error
 //	    })
 //
 //	    // Create upload processor
-//	    processor := upload.NewProcessor(s3Storage, upload.Options{
+//	    processor := NewProcessor(s3Storage, Options{
 //	        MaxFileSize: 10 * 1024 * 1024, // 10MB
 //	        AllowedMIMETypes: []string{"image/jpeg", "image/png", "application/pdf"},
 //	        ValidateChecksum: true,
 //	    })
 //
 //	    // Register post-processing hooks
-//	    processor.OnSuccess(func(ctx context.Context, result upload.Result) {
+//	    processor.OnSuccess(func(ctx context.Context, result Result) {
 //	        log.Printf("File uploaded: %s", result.URL)
 //	    })
 //
 //	    mux := http.NewServeMux()
 //
 //	    // Apply middleware to upload routes
-//	    mux.HandleFunc("/upload", upload.UploadMiddleware(processor, "files", nil)(uploadHandler))
-//	    mux.HandleFunc("/api/upload", upload.UploadMiddleware(processor, "file", upload.JSONUploadErrorHandler)(apiUploadHandler))
+//	    mux.HandleFunc("/upload", Middleware(processor, "files", nil)(uploadHandler))
+//	    mux.HandleFunc("/api/upload", Middleware(processor, "file", JSONUploadErrorHandler)(apiUploadHandler))
 //
 //	    http.ListenAndServe(":8080", mux)
 //	}
 //
 //	func uploadHandler(w http.ResponseWriter, r *http.Request) {
-//	    results := upload.UploadResultsFromContext(r.Context())
+//	    results := ResultsFromContext(r.Context())
 //
 //	    // Files are already uploaded and validated
 //	    w.Header().Set("Content-Type", "application/json")
@@ -75,7 +88,7 @@ func DefaultUploadErrorHandler(w http.ResponseWriter, r *http.Request, err error
 //	}
 //
 //	func apiUploadHandler(w http.ResponseWriter, r *http.Request) {
-//	    results := upload.MustUploadResultsFromContext(r.Context())
+//	    results := MustUploadResultsFromContext(r.Context())
 //
 //	    // Process upload results
 //	    for _, result := range results {
@@ -96,23 +109,23 @@ func DefaultUploadErrorHandler(w http.ResponseWriter, r *http.Request, err error
 // - Post-processing hooks for additional operations
 // - Context injection for easy access in handlers
 // - Custom error handling for different response formats
-func UploadMiddleware(processor *Processor, fieldName string, errorHandler UploadErrorHandler) func(http.Handler) http.Handler {
+func Middleware(processor *Processor, fieldName string, errorHandler ErrorHandler) func(http.Handler) http.Handler {
 	return sharedUploadMiddleware(
 		func(r *http.Request) (interface{}, error) {
 			return processor.Process(r, fieldName)
 		},
-		"upload_results",
+		uploadResultsKey,
 		errorHandler,
 	)
 }
 
-// UploadResultsFromContext retrieves the upload results from the request context.
+// ResultsFromContext retrieves the upload results from the request context.
 // Returns nil if no results were found in the context.
 //
 // Example:
 //
 //	func handler(w http.ResponseWriter, r *http.Request) {
-//	    results := upload.UploadResultsFromContext(r.Context())
+//	    results := ResultsFromContext(r.Context())
 //	    if results == nil {
 //	        http.Error(w, "No upload results", http.StatusBadRequest)
 //	        return
@@ -142,15 +155,15 @@ func UploadMiddleware(processor *Processor, fieldName string, errorHandler Uploa
 // For guaranteed access (when you're certain the middleware is applied):
 //
 //	func handler(w http.ResponseWriter, r *http.Request) {
-//	    results := upload.MustUploadResultsFromContext(r.Context())
+//	    results := MustUploadResultsFromContext(r.Context())
 //
 //	    // results is guaranteed to be non-nil
 //	    for _, result := range results {
 //	        processFile(result)
 //	    }
 //	}
-func UploadResultsFromContext(ctx context.Context) []Result {
-	if results, ok := ctx.Value("upload_results").([]Result); ok {
+func ResultsFromContext(ctx context.Context) []Result {
+	if results, ok := ctx.Value(uploadResultsKey).([]Result); ok {
 		return results
 	}
 	return nil
@@ -159,7 +172,7 @@ func UploadResultsFromContext(ctx context.Context) []Result {
 // MustUploadResultsFromContext retrieves the upload results from the request context.
 // Panics if no results were found in the context.
 func MustUploadResultsFromContext(ctx context.Context) []Result {
-	results := UploadResultsFromContext(ctx)
+	results := ResultsFromContext(ctx)
 	if results == nil {
 		panic("upload: Upload results not found in context. Did you apply the UploadMiddleware?")
 	}
@@ -169,7 +182,7 @@ func MustUploadResultsFromContext(ctx context.Context) []Result {
 // SingleUploadMiddleware returns middleware that processes a single file upload
 // and stores the result in the request context.
 //
-// This middleware is similar to UploadMiddleware but is optimized for single file
+// This middleware is similar to Middleware but is optimized for single file
 // uploads. It stores a single Result instead of a slice, making it more convenient
 // for handlers that expect only one file.
 //
@@ -183,7 +196,7 @@ func MustUploadResultsFromContext(ctx context.Context) []Result {
 //	    })
 //
 //	    // Create processor for avatar uploads
-//	    avatarProcessor := upload.NewProcessor(localStorage, upload.Options{
+//	    avatarProcessor := NewProcessor(localStorage, Options{
 //	        MaxFileSize: 5 * 1024 * 1024, // 5MB
 //	        AllowedMIMETypes: []string{"image/jpeg", "image/png", "image/gif"},
 //	    })
@@ -191,16 +204,16 @@ func MustUploadResultsFromContext(ctx context.Context) []Result {
 //	    mux := http.NewServeMux()
 //
 //	    // Single file upload for avatar
-//	    mux.HandleFunc("/avatar", upload.SingleUploadMiddleware(avatarProcessor, "avatar", nil)(avatarHandler))
+//	    mux.HandleFunc("/avatar", SingleUploadMiddleware(avatarProcessor, "avatar", nil)(avatarHandler))
 //
 //	    // Multiple file upload for gallery
-//	    mux.HandleFunc("/gallery", upload.UploadMiddleware(avatarProcessor, "images", nil)(galleryHandler))
+//	    mux.HandleFunc("/gallery", Middleware(avatarProcessor, "images", nil)(galleryHandler))
 //
 //	    http.ListenAndServe(":8080", mux)
 //	}
 //
 //	func avatarHandler(w http.ResponseWriter, r *http.Request) {
-//	    result := upload.SingleUploadResultFromContext(r.Context())
+//	    result := SingleUploadResultFromContext(r.Context())
 //	    if result == nil {
 //	        http.Error(w, "No avatar uploaded", http.StatusBadRequest)
 //	        return
@@ -218,7 +231,7 @@ func MustUploadResultsFromContext(ctx context.Context) []Result {
 //	}
 //
 //	func galleryHandler(w http.ResponseWriter, r *http.Request) {
-//	    results := upload.UploadResultsFromContext(r.Context())
+//	    results := ResultsFromContext(r.Context())
 //
 //	    // Process multiple images
 //	    for _, result := range results {
@@ -237,12 +250,12 @@ func MustUploadResultsFromContext(ctx context.Context) []Result {
 // - You want simpler handler code (no slice handling)
 // - You're building single-file upload features (avatar, profile picture, etc.)
 // - You want type safety for single file operations
-func SingleUploadMiddleware(processor *Processor, fieldName string, errorHandler UploadErrorHandler) func(http.Handler) http.Handler {
+func SingleUploadMiddleware(processor *Processor, fieldName string, errorHandler ErrorHandler) func(http.Handler) http.Handler {
 	return sharedUploadMiddleware(
 		func(r *http.Request) (interface{}, error) {
 			return processor.ProcessSingle(r, fieldName)
 		},
-		"upload_result",
+		uploadResultKey,
 		errorHandler,
 	)
 }
@@ -250,7 +263,7 @@ func SingleUploadMiddleware(processor *Processor, fieldName string, errorHandler
 // SingleUploadResultFromContext retrieves the single upload result from the request context.
 // Returns nil if no result was found in the context.
 func SingleUploadResultFromContext(ctx context.Context) *Result {
-	if result, ok := ctx.Value("upload_result").(*Result); ok {
+	if result, ok := ctx.Value(uploadResultKey).(*Result); ok {
 		return result
 	}
 	return nil
@@ -266,10 +279,10 @@ func MustSingleUploadResultFromContext(ctx context.Context) *Result {
 	return result
 }
 
-// UploadMiddlewareWithContext returns middleware that processes file uploads
+// MiddlewareWithContext returns middleware that processes file uploads
 // with context support for cancellation and timeouts.
 //
-// This middleware is similar to UploadMiddleware but uses ProcessWithContext,
+// This middleware is similar to Middleware but uses ProcessWithContext,
 // which provides better observability and context cancellation support. Use this
 // version when you need tracing, metrics, or context-aware upload processing.
 //
@@ -282,13 +295,13 @@ func MustSingleUploadResultFromContext(ctx context.Context) *Result {
 //	        ProjectID: "my-project",
 //	    })
 //
-//	    processor := upload.NewProcessor(gcsStorage, upload.Options{
+//	    processor := NewProcessor(gcsStorage, Options{
 //	        MaxFileSize: 50 * 1024 * 1024, // 50MB
 //	        AllowedMIMETypes: []string{"application/pdf", "text/plain"},
 //	    })
 //
 //	    // Register context-aware hooks
-//	    processor.OnSuccess(func(ctx context.Context, result upload.Result) {
+//	    processor.OnSuccess(func(ctx context.Context, result Result) {
 //	        // Context is available for tracing and cancellation
 //	        span := trace.SpanFromContext(ctx)
 //	        span.AddEvent("file_uploaded", trace.WithAttributes(
@@ -301,14 +314,14 @@ func MustSingleUploadResultFromContext(ctx context.Context) *Result {
 //	    })
 //
 //	    mux := http.NewServeMux()
-//	    mux.HandleFunc("/documents", upload.UploadMiddlewareWithContext(processor, "document", nil)(documentHandler))
+//	    mux.HandleFunc("/documents", MiddlewareWithContext(processor, "document", nil)(documentHandler))
 //
 //	    http.ListenAndServe(":8080", mux)
 //	}
 //
 //	func documentHandler(w http.ResponseWriter, r *http.Request) {
 //	    ctx := r.Context()
-//	    results := upload.UploadResultsFromContext(ctx)
+//	    results := ResultsFromContext(ctx)
 //
 //	    // Process with context support
 //	    for _, result := range results {
@@ -335,9 +348,9 @@ func MustSingleUploadResultFromContext(ctx context.Context) *Result {
 // - Performing async post-processing operations
 // - Implementing observability in upload pipelines
 // - Building robust upload systems with proper error handling
-func UploadMiddlewareWithContext(processor *Processor, fieldName string, errorHandler UploadErrorHandler) func(http.Handler) http.Handler {
+func MiddlewareWithContext(processor *Processor, fieldName string, errorHandler ErrorHandler) func(http.Handler) http.Handler {
 	if errorHandler == nil {
-		errorHandler = DefaultUploadErrorHandler
+		errorHandler = DefaultErrorHandler
 	}
 
 	return func(next http.Handler) http.Handler {
@@ -352,7 +365,7 @@ func UploadMiddlewareWithContext(processor *Processor, fieldName string, errorHa
 			}
 
 			// Upload succeeded, store results in context
-			ctx := context.WithValue(r.Context(), "upload_results", results)
+			ctx := context.WithValue(r.Context(), uploadResultsKey, results)
 			r = r.WithContext(ctx)
 
 			// Call next handler
@@ -378,7 +391,7 @@ func UploadMiddlewareWithContext(processor *Processor, fieldName string, errorHa
 // Example usage:
 //
 //	func main() {
-//	    processor := upload.NewProcessor(storage, upload.Options{
+//	    processor := NewProcessor(storage, Options{
 //	        MaxFileSize: 10 * 1024 * 1024,
 //	        AllowedMIMETypes: []string{"image/jpeg", "image/png"},
 //	    })
@@ -386,16 +399,16 @@ func UploadMiddlewareWithContext(processor *Processor, fieldName string, errorHa
 //	    mux := http.NewServeMux()
 //
 //	    // Use JSON error handler for API endpoints
-//	    mux.HandleFunc("/api/upload", upload.UploadMiddleware(processor, "file", upload.JSONUploadErrorHandler)(apiUploadHandler))
+//	    mux.HandleFunc("/api/upload", Middleware(processor, "file", JSONUploadErrorHandler)(apiUploadHandler))
 //
 //	    // Use HTML error handler for web forms
-//	    mux.HandleFunc("/upload", upload.UploadMiddleware(processor, "file", upload.HTMLUploadErrorHandler)(webUploadHandler))
+//	    mux.HandleFunc("/upload", Middleware(processor, "file", HTMLUploadErrorHandler)(webUploadHandler))
 //
 //	    http.ListenAndServe(":8080", mux)
 //	}
 //
 //	func apiUploadHandler(w http.ResponseWriter, r *http.Request) {
-//	    results := upload.UploadResultsFromContext(r.Context())
+//	    results := ResultsFromContext(r.Context())
 //
 //	    // Process successful upload
 //	    w.Header().Set("Content-Type", "application/json")
@@ -406,7 +419,7 @@ func UploadMiddlewareWithContext(processor *Processor, fieldName string, errorHa
 //	}
 //
 //	func webUploadHandler(w http.ResponseWriter, r *http.Request) {
-//	    results := upload.UploadResultsFromContext(r.Context())
+//	    results := ResultsFromContext(r.Context())
 //
 //	    // Render success page
 //	    w.Header().Set("Content-Type", "text/html")
@@ -444,7 +457,7 @@ func JSONUploadErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
 // Example usage:
 //
 //	func main() {
-//	    processor := upload.NewProcessor(storage, upload.Options{
+//	    processor := NewProcessor(storage, Options{
 //	        MaxFileSize: 5 * 1024 * 1024,
 //	        AllowedMIMETypes: []string{"image/jpeg", "image/png"},
 //	    })
@@ -452,13 +465,13 @@ func JSONUploadErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
 //	    mux := http.NewServeMux()
 //
 //	    // Use HTML error handler for web forms
-//	    mux.HandleFunc("/upload", upload.UploadMiddleware(processor, "file", upload.HTMLUploadErrorHandler)(webUploadHandler))
+//	    mux.HandleFunc("/upload", Middleware(processor, "file", HTMLUploadErrorHandler)(webUploadHandler))
 //
 //	    http.ListenAndServe(":8080", mux)
 //	}
 //
 //	func webUploadHandler(w http.ResponseWriter, r *http.Request) {
-//	    results := upload.UploadResultsFromContext(r.Context())
+//	    results := ResultsFromContext(r.Context())
 //
 //	    // Render success page
 //	    w.Header().Set("Content-Type", "text/html")
@@ -523,9 +536,9 @@ func HTMLUploadErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
 	}
 }
 
-// UploadSuccessHandler returns middleware that automatically responds with
+// SuccessHandler returns middleware that automatically responds with
 // upload success information in JSON format.
-func UploadSuccessHandler(next http.Handler) http.Handler {
+func SuccessHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Create a response writer that captures the response
 		responseWriter := &responseCapture{ResponseWriter: w}
@@ -535,7 +548,7 @@ func UploadSuccessHandler(next http.Handler) http.Handler {
 
 		// If no response was written and we have upload results, write success response
 		if !responseWriter.written {
-			results := UploadResultsFromContext(r.Context())
+			results := ResultsFromContext(r.Context())
 			if results != nil {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
@@ -572,9 +585,9 @@ func (rc *responseCapture) WriteHeader(statusCode int) {
 }
 
 // sharedUploadMiddleware handles the common logic for upload middlewares
-func sharedUploadMiddleware(process func(*http.Request) (interface{}, error), contextKey string, errorHandler UploadErrorHandler) func(http.Handler) http.Handler {
+func sharedUploadMiddleware(process func(*http.Request) (interface{}, error), contextKey contextKey, errorHandler ErrorHandler) func(http.Handler) http.Handler {
 	if errorHandler == nil {
-		errorHandler = DefaultUploadErrorHandler
+		errorHandler = DefaultErrorHandler
 	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

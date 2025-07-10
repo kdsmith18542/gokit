@@ -18,7 +18,7 @@ func TestPreSignedURL(t *testing.T) {
 	ctx := context.Background()
 
 	// Test GenerateUploadURL
-	opts := UploadOptions{
+	opts := PresignedOptions{
 		Filename:    "test.txt",
 		ContentType: "text/plain",
 		Expiration:  15 * time.Minute,
@@ -34,7 +34,7 @@ func TestPreSignedURL(t *testing.T) {
 	}
 
 	// Test GenerateUploadURLs
-	results, err := processor.GenerateUploadURLs(ctx, []UploadOptions{opts})
+	results, err := processor.GenerateUploadURLs(ctx, []PresignedOptions{opts})
 	// Mock storage doesn't support pre-signed URLs, so expect an error
 	if err == nil {
 		t.Error("Expected error for mock storage pre-signed URL generation")
@@ -49,18 +49,18 @@ func TestPreSignedURL(t *testing.T) {
 		t.Errorf("ValidatePreSignedUpload failed: %v", err)
 	}
 
-	// Test GetUploadStatus
-	status, err := processor.GetUploadStatus(ctx, "test.txt")
+	// Test GetStatus
+	status, err := processor.GetStatus(ctx, "test.txt")
 	if err != nil {
-		t.Errorf("GetUploadStatus failed: %v", err)
+		t.Errorf("GetStatus failed: %v", err)
 	}
 	if status == nil {
 		t.Error("Upload status should not be nil")
 	}
 }
 
-func TestUploadOptions(t *testing.T) {
-	opts := UploadOptions{
+func TestPresignedOptions(t *testing.T) {
+	opts := PresignedOptions{
 		Filename:    "test.txt",
 		ContentType: "text/plain",
 		Expiration:  15 * time.Minute,

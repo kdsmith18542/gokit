@@ -148,7 +148,7 @@ func TestValidatedFormFromContext(t *testing.T) {
 
 	// Test with context containing form
 	testForm := &TestFormMiddleware{Email: "test@example.com"}
-	ctx := context.WithValue(context.Background(), "validated_form", testForm)
+	ctx := context.WithValue(context.Background(), formDataKey, testForm)
 
 	form = ValidatedFormFromContext(ctx)
 	if form != testForm {
@@ -170,7 +170,7 @@ func TestMustValidatedFormFromContext(t *testing.T) {
 func TestMustValidatedFormFromContextSuccess(t *testing.T) {
 	// Test success case
 	testForm := &TestFormMiddleware{Email: "test@example.com"}
-	ctx := context.WithValue(context.Background(), "validated_form", testForm)
+	ctx := context.WithValue(context.Background(), formDataKey, testForm)
 
 	form := MustValidatedFormFromContext(ctx)
 	if form != testForm {

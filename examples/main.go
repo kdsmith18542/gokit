@@ -1,3 +1,4 @@
+// Package main provides example usage of the gokit form, i18n, and upload packages.
 package main
 
 import (
@@ -13,6 +14,7 @@ import (
 	"github.com/kdsmith18542/gokit/upload/storage"
 )
 
+// UserForm represents a user registration form.
 type UserForm struct {
 	Email    string `form:"email" validate:"required,email"`
 	Password string `form:"password" validate:"required,min=8"`
@@ -30,6 +32,7 @@ func main() {
 	fileProcessor := upload.NewProcessor(localStorage, upload.Options{
 		MaxFileSize:      5 * 1024 * 1024,
 		AllowedMIMETypes: []string{"image/jpeg", "image/png", "application/pdf"},
+		MaxFiles:         5,
 	})
 
 	mux := http.NewServeMux()
@@ -38,7 +41,7 @@ func main() {
 	mux.Handle("/register", form.ValidationMiddleware(UserForm{}, nil)(http.HandlerFunc(registerHandler)))
 
 	// File upload with upload middleware
-	mux.Handle("/upload", upload.UploadMiddleware(fileProcessor, "file", nil)(http.HandlerFunc(uploadHandler)))
+	mux.Handle("/upload", upload.Middleware(fileProcessor, "file", nil)(http.HandlerFunc(uploadHandler)))
 
 	// Greeting endpoint with i18n
 	mux.HandleFunc("/greet", greetHandler)
@@ -81,7 +84,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 // Handler for file upload
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	// Extract upload results from context
-	results := upload.UploadResultsFromContext(r.Context())
+	results := upload.ResultsFromContext(r.Context())
 	if results == nil || len(results) == 0 {
 		http.Error(w, "No files uploaded", http.StatusBadRequest)
 		return

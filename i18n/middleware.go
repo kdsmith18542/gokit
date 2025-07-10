@@ -278,7 +278,7 @@ func LocaleDetectorWithFallback(manager *Manager, fallbackLocale string) func(ht
 	}
 }
 
-// LocaleDetectorWithOptions returns middleware with configurable options.
+// LocaleDetectorOptions provides configurable options for the locale detection middleware.
 type LocaleDetectorOptions struct {
 	// FallbackLocale is the locale to use if detection fails
 	FallbackLocale string
@@ -312,7 +312,7 @@ type LocaleDetectorOptions struct {
 //	        CookieMaxAge:   30 * 24 * 60 * 60, // 30 days
 //	    }
 //
-//	    handler := i18n.LocaleDetectorWithOptions(manager, options)(mux)
+//	    handler := i18n.LocaleWithOptions(manager, options)(mux)
 //	    http.ListenAndServe(":8080", handler)
 //	}
 //

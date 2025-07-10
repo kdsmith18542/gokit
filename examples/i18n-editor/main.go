@@ -138,7 +138,7 @@ no = "Nein"
 	}
 
 	manager := i18n.NewManager(localesDir)
-	handler := editor.NewHandler(editor.EditorConfig{
+	handler := editor.NewHandler(editor.Config{
 		LocalesDir: localesDir,
 		Manager:    manager,
 	})

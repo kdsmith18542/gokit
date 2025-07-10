@@ -74,6 +74,7 @@ func (o *ObservableStorage) Exists(filename string) bool {
 	return exists
 }
 
+// GetReader returns a reader for the specified file with observability.
 func (o *ObservableStorage) GetReader(filename string) (io.ReadCloser, error) {
 	start := time.Now()
 	ctx := context.Background()

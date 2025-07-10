@@ -115,7 +115,7 @@ func DecodeAndValidateMap(ctx context.Context, data map[string]interface{}, v in
 	}
 
 	// Validate struct
-	if structErrors := validateStructPointer(v, ctx, formName); structErrors != nil {
+	if structErrors := validateStructPointer(ctx, v, formName); structErrors != nil {
 		return structErrors
 	}
 	val := reflect.ValueOf(v).Elem()

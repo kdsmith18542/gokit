@@ -12,7 +12,7 @@ import (
 	"github.com/kdsmith18542/gokit/upload/storage"
 )
 
-func TestUploadMiddleware(t *testing.T) {
+func TestMiddleware(t *testing.T) {
 	// Create mock storage
 	mockStorage := storage.NewMockStorage()
 
@@ -24,7 +24,7 @@ func TestUploadMiddleware(t *testing.T) {
 
 	// Test successful upload
 	t.Run("successful upload", func(t *testing.T) {
-		middleware := UploadMiddleware(processor, "file", nil)
+		middleware := Middleware(processor, "file", nil)
 
 		// Create multipart request
 		var buf bytes.Buffer
@@ -44,7 +44,7 @@ func TestUploadMiddleware(t *testing.T) {
 
 		var capturedResults []Result
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			capturedResults = UploadResultsFromContext(r.Context())
+			capturedResults = ResultsFromContext(r.Context())
 		})
 
 		middleware(handler).ServeHTTP(w, req)
@@ -76,7 +76,7 @@ func TestUploadMiddleware(t *testing.T) {
 			AllowedMIMETypes: []string{"image/jpeg", "image/png", "application/octet-stream"},
 		})
 
-		middleware := UploadMiddleware(restrictiveProcessor, "file", nil)
+		middleware := Middleware(restrictiveProcessor, "file", nil)
 
 		// Create large file
 		var buf bytes.Buffer
@@ -170,7 +170,7 @@ func TestSingleUploadMiddleware(t *testing.T) {
 	}
 }
 
-func TestUploadMiddlewareWithContext(t *testing.T) {
+func TestMiddlewareWithContext(t *testing.T) {
 	// Create mock storage
 	mockStorage := storage.NewMockStorage()
 
@@ -180,7 +180,7 @@ func TestUploadMiddlewareWithContext(t *testing.T) {
 		AllowedMIMETypes: []string{"image/jpeg", "image/png", "application/octet-stream"},
 	})
 
-	middleware := UploadMiddlewareWithContext(processor, "file", nil)
+	middleware := MiddlewareWithContext(processor, "file", nil)
 
 	// Create multipart request
 	var buf bytes.Buffer
@@ -200,7 +200,7 @@ func TestUploadMiddlewareWithContext(t *testing.T) {
 
 	var capturedResults []Result
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		capturedResults = UploadResultsFromContext(r.Context())
+		capturedResults = ResultsFromContext(r.Context())
 	})
 
 	middleware(handler).ServeHTTP(w, req)
@@ -211,9 +211,9 @@ func TestUploadMiddlewareWithContext(t *testing.T) {
 	}
 }
 
-func TestUploadResultsFromContext(t *testing.T) {
+func TestResultsFromContext(t *testing.T) {
 	// Test with nil context
-	results := UploadResultsFromContext(context.Background())
+	results := ResultsFromContext(context.Background())
 	if results != nil {
 		t.Error("Expected nil results for empty context")
 	}
@@ -222,9 +222,9 @@ func TestUploadResultsFromContext(t *testing.T) {
 	testResults := []Result{
 		{OriginalName: "test.jpg", Size: 1024},
 	}
-	ctx := context.WithValue(context.Background(), "upload_results", testResults)
+	ctx := context.WithValue(context.Background(), uploadResultsKey, testResults)
 
-	results = UploadResultsFromContext(ctx)
+	results = ResultsFromContext(ctx)
 	if len(results) != 1 {
 		t.Errorf("Expected 1 result, got %d", len(results))
 	}
@@ -246,7 +246,7 @@ func TestMustUploadResultsFromContextSuccess(t *testing.T) {
 	testResults := []Result{
 		{OriginalName: "test.jpg", Size: 1024},
 	}
-	ctx := context.WithValue(context.Background(), "upload_results", testResults)
+	ctx := context.WithValue(context.Background(), uploadResultsKey, testResults)
 
 	results := MustUploadResultsFromContext(ctx)
 	if len(results) != 1 {
@@ -263,7 +263,7 @@ func TestSingleUploadResultFromContext(t *testing.T) {
 
 	// Test with context containing result
 	testResult := &Result{OriginalName: "test.jpg", Size: 1024}
-	ctx := context.WithValue(context.Background(), "upload_result", testResult)
+	ctx := context.WithValue(context.Background(), uploadResultKey, testResult)
 
 	result = SingleUploadResultFromContext(ctx)
 	if result != testResult {
@@ -285,7 +285,7 @@ func TestMustSingleUploadResultFromContext(t *testing.T) {
 func TestMustSingleUploadResultFromContextSuccess(t *testing.T) {
 	// Test success case
 	testResult := &Result{OriginalName: "test.jpg", Size: 1024}
-	ctx := context.WithValue(context.Background(), "upload_result", testResult)
+	ctx := context.WithValue(context.Background(), uploadResultKey, testResult)
 
 	result := MustSingleUploadResultFromContext(ctx)
 	if result != testResult {
@@ -336,7 +336,7 @@ func TestHTMLUploadErrorHandler(t *testing.T) {
 	}
 }
 
-func TestUploadSuccessHandler(t *testing.T) {
+func TestSuccessHandler(t *testing.T) {
 	// Create mock storage
 	mockStorage := storage.NewMockStorage()
 
@@ -361,7 +361,7 @@ func TestUploadSuccessHandler(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	// Create middleware chain
-	uploadMiddleware := UploadMiddleware(processor, "file", nil)
+	uploadMiddleware := Middleware(processor, "file", nil)
 
 	// Handler that doesn't write response
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -369,7 +369,7 @@ func TestUploadSuccessHandler(t *testing.T) {
 	})
 
 	// Apply upload middleware first, then success handler
-	uploadMiddleware(UploadSuccessHandler(handler)).ServeHTTP(w, req)
+	uploadMiddleware(SuccessHandler(handler)).ServeHTTP(w, req)
 
 	// Check response
 	if w.Code != http.StatusOK {
@@ -407,7 +407,7 @@ func TestCustomUploadErrorHandler(t *testing.T) {
 		AllowedMIMETypes: []string{"image/jpeg", "image/png", "application/octet-stream"},
 	})
 
-	middleware := UploadMiddleware(processor, "file", customHandler)
+	middleware := Middleware(processor, "file", customHandler)
 
 	// Create large file
 	var buf bytes.Buffer

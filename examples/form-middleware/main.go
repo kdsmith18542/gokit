@@ -1,3 +1,4 @@
+// Package main provides an example of using the form validation middleware.
 package main
 
 import (
@@ -8,6 +9,7 @@ import (
 	"github.com/kdsmith18542/gokit/form"
 )
 
+// UserForm represents a user registration form for the middleware example.
 type UserForm struct {
 	Email    string `form:"email" validate:"required,email"`
 	Password string `form:"password" validate:"required,min=8"`

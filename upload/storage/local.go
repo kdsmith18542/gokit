@@ -226,6 +226,9 @@ func (l *LocalStorage) GetSignedURL(filename string, expiration time.Duration) (
 	return url, nil
 }
 
+// GetReader returns a reader for the specified file in local storage.
+// The filename parameter is the internal path/identifier of the file.
+// Returns an io.ReadCloser for the file content, or an error if the file is not found or cannot be opened.
 func (l *LocalStorage) GetReader(filename string) (io.ReadCloser, error) {
 	if filename == "" {
 		return nil, fmt.Errorf("filename cannot be empty")

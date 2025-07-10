@@ -1,3 +1,38 @@
+// Package upload provides advanced file upload handling for Go web applications.
+//
+// Features:
+//   - Streaming file uploads with validation
+//   - Pluggable storage backends (Local, S3, GCS, Azure Blob)
+//   - File size, type, and extension validation
+//   - Checksum calculation and verification
+//   - Pre-signed URL generation for direct uploads
+//   - Resumable/chunked uploads for large files
+//   - Progress tracking and hooks
+//
+// Example:
+//
+//	// Initialize with local storage
+//	localStorage := storage.NewLocal("./uploads")
+//	processor := NewProcessor(localStorage, Options{
+//	    MaxFileSize:      10 * 1024 * 1024, // 10MB
+//	    AllowedMIMETypes: []string{"image/jpeg", "image/png"},
+//	    MaxFiles:         5,
+//	})
+//
+//	// Handle upload in HTTP handler
+//	func UploadHandler(w http.ResponseWriter, r *http.Request) {
+//	    results, err := processor.Process(r, "files")
+//	    if err != nil {
+//	        http.Error(w, err.Error(), http.StatusBadRequest)
+//	        return
+//	    }
+//
+//	    for _, result := range results {
+//	        fmt.Printf("Uploaded: %s -> %s\n", result.OriginalName, result.URL)
+//	    }
+//	}
+//
+// For resumable uploads, see the ResumableProcessor in the same package.
 package upload
 
 import (
@@ -33,8 +68,8 @@ type ChunkInfo struct {
 	Checksum    string `json:"checksum"`
 }
 
-// UploadSession represents a resumable upload session
-type UploadSession struct {
+// Session represents a resumable upload session
+type Session struct {
 	FileID      string                 `json:"file_id"`
 	FileName    string                 `json:"file_name"`
 	TotalSize   int64                  `json:"total_size"`
@@ -60,7 +95,7 @@ type ChunkMetadata struct {
 type ResumableProcessor struct {
 	storage    storage.Storage
 	options    Options
-	sessions   map[string]*UploadSession
+	sessions   map[string]*Session
 	sessionTTL time.Duration
 	mu         sync.RWMutex
 }
@@ -70,13 +105,13 @@ func NewResumableProcessor(storage storage.Storage, options Options) *ResumableP
 	return &ResumableProcessor{
 		storage:    storage,
 		options:    options,
-		sessions:   make(map[string]*UploadSession),
+		sessions:   make(map[string]*Session),
 		sessionTTL: 24 * time.Hour, // Sessions expire after 24 hours
 	}
 }
 
 // InitiateUpload starts a new resumable upload session
-func (rp *ResumableProcessor) InitiateUpload(ctx context.Context, fileName string, totalSize int64, mimeType string, chunkSize int64) (*UploadSession, error) {
+func (rp *ResumableProcessor) InitiateUpload(ctx context.Context, fileName string, totalSize int64, mimeType string, chunkSize int64) (*Session, error) {
 	// Validate file size
 	if rp.options.MaxFileSize > 0 && totalSize > rp.options.MaxFileSize {
 		return nil, fmt.Errorf("file too large: %d bytes (max: %d)", totalSize, rp.options.MaxFileSize)
@@ -96,7 +131,7 @@ func (rp *ResumableProcessor) InitiateUpload(ctx context.Context, fileName strin
 	totalChunks := int((totalSize + chunkSize - 1) / chunkSize)
 
 	// Create session
-	session := &UploadSession{
+	session := &Session{
 		FileID:      fileID,
 		FileName:    fileName,
 		TotalSize:   totalSize,
@@ -171,8 +206,8 @@ func (rp *ResumableProcessor) UploadChunk(ctx context.Context, fileID string, ch
 	return nil
 }
 
-// GetUploadStatus returns the current status of an upload session
-func (rp *ResumableProcessor) GetUploadStatus(fileID string) (*UploadSession, error) {
+// GetStatus returns the current status of an upload session
+func (rp *ResumableProcessor) GetStatus(fileID string) (*Session, error) {
 	rp.mu.RLock()
 	session, exists := rp.sessions[fileID]
 	rp.mu.RUnlock()
@@ -343,7 +378,7 @@ func (rp *ResumableProcessor) handleGetStatus(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	session, err := rp.GetUploadStatus(fileID)
+	session, err := rp.GetStatus(fileID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -404,7 +439,7 @@ func (rp *ResumableProcessor) calculateChecksum(data []byte) string {
 	return hex.EncodeToString(hash[:])
 }
 
-func (rp *ResumableProcessor) combineChunks(ctx context.Context, session *UploadSession) (string, error) {
+func (rp *ResumableProcessor) combineChunks(ctx context.Context, session *Session) (string, error) {
 	// Create the final file path
 	finalPath := fmt.Sprintf("uploads/%s/%s", session.FileID, session.FileName)
 
@@ -461,7 +496,7 @@ func (rp *ResumableProcessor) combineChunks(ctx context.Context, session *Upload
 	return finalPath, nil
 }
 
-func (rp *ResumableProcessor) calculateFinalChecksum(ctx context.Context, session *UploadSession) (string, error) {
+func (rp *ResumableProcessor) calculateFinalChecksum(ctx context.Context, session *Session) (string, error) {
 	// Get the final file path
 	finalPath := fmt.Sprintf("uploads/%s/%s", session.FileID, session.FileName)
 

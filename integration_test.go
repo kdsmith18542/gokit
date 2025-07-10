@@ -528,8 +528,8 @@ func (suite *IntegrationTestSuite) testMiddleware(t *testing.T) {
 
 	// Test upload middleware
 	t.Run("UploadMiddleware", func(t *testing.T) {
-		handler := upload.UploadMiddleware(suite.uploadProcessor, "file", nil)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			results := upload.UploadResultsFromContext(r.Context())
+		handler := upload.Middleware(suite.uploadProcessor, "file", nil)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			results := upload.ResultsFromContext(r.Context())
 			if results == nil {
 				t.Error("Expected upload results in context")
 				return
@@ -602,7 +602,7 @@ func (suite *IntegrationTestSuite) testResumableUpload(t *testing.T) {
 			t.Fatalf("Initiate upload expected status 200, got: %d\nResponse: %s", rec.Code, rec.Body.String())
 		}
 
-		var session upload.UploadSession
+		var session upload.Session
 		err := json.NewDecoder(rec.Body).Decode(&session)
 		if err != nil {
 			t.Fatalf("Failed to decode initiate response: %v", err)
@@ -639,7 +639,7 @@ func (suite *IntegrationTestSuite) testResumableUpload(t *testing.T) {
 			t.Fatalf("Get status expected status 200, got: %d\nResponse: %s", statusRec.Code, statusRec.Body.String())
 		}
 
-		var finalSession upload.UploadSession
+		var finalSession upload.Session
 		err = json.NewDecoder(statusRec.Body).Decode(&finalSession)
 		if err != nil {
 			t.Fatalf("Failed to decode final session response: %v", err)
@@ -782,7 +782,7 @@ func (suite *IntegrationTestSuite) testPresignedURLs(t *testing.T) {
 		// For GET operations, we can use the Processor's method since the file exists
 		urlResult, err := suite.uploadProcessor.GenerateUploadURL(
 			context.Background(),
-			upload.UploadOptions{
+			upload.PresignedOptions{
 				Filename:    fileName,
 				Expiration:  expiration,
 				MaxFileSize: 1024 * 1024, // 1MB

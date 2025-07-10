@@ -127,7 +127,7 @@ func TestUploadChunk(t *testing.T) {
 	}
 
 	// Check session status
-	updatedSession, err := processor.GetUploadStatus(session.FileID)
+	updatedSession, err := processor.GetStatus(session.FileID)
 	if err != nil {
 		t.Fatalf("Failed to get upload status: %v", err)
 	}
@@ -225,7 +225,7 @@ func TestCompleteUpload(t *testing.T) {
 	}
 
 	// Check session status
-	updatedSession, err := processor.GetUploadStatus(session.FileID)
+	updatedSession, err := processor.GetStatus(session.FileID)
 	if err != nil {
 		t.Fatalf("Failed to get upload status: %v", err)
 	}
@@ -288,7 +288,7 @@ func TestAbortUpload(t *testing.T) {
 	}
 
 	// Try to get status
-	_, err = processor.GetUploadStatus(session.FileID)
+	_, err = processor.GetStatus(session.FileID)
 	if err == nil {
 		t.Error("Expected error for aborted upload")
 	}
@@ -326,7 +326,7 @@ func TestHandleResumableUploadInitiate(t *testing.T) {
 		t.Errorf("Expected status 200, got: %d", w.Code)
 	}
 
-	var session UploadSession
+	var session Session
 	err := json.NewDecoder(w.Body).Decode(&session)
 	if err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
@@ -395,7 +395,7 @@ func TestHandleResumableUploadStatus(t *testing.T) {
 		t.Errorf("Expected status 200, got: %d", w.Code)
 	}
 
-	var responseSession UploadSession
+	var responseSession Session
 	err = json.NewDecoder(w.Body).Decode(&responseSession)
 	if err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
@@ -446,7 +446,7 @@ func TestConcurrentUploads(t *testing.T) {
 	ctx := context.Background()
 
 	// Create multiple upload sessions
-	sessions := make([]*UploadSession, 5)
+	sessions := make([]*Session, 5)
 	for i := 0; i < 5; i++ {
 		session, err := processor.InitiateUpload(ctx, fmt.Sprintf("test%d.jpg", i), 1024*1024, "image/jpeg", 512*1024)
 		if err != nil {
@@ -458,7 +458,7 @@ func TestConcurrentUploads(t *testing.T) {
 	// Upload chunks concurrently
 	done := make(chan bool, 5)
 	for i, session := range sessions {
-		go func(session *UploadSession, index int) {
+		go func(session *Session, index int) {
 			chunkData := strings.NewReader(fmt.Sprintf("chunk data for file %d", index))
 			err := processor.UploadChunk(ctx, session.FileID, 0, chunkData)
 			if err != nil {
@@ -475,7 +475,7 @@ func TestConcurrentUploads(t *testing.T) {
 
 	// Verify all sessions have chunks
 	for i, session := range sessions {
-		status, err := processor.GetUploadStatus(session.FileID)
+		status, err := processor.GetStatus(session.FileID)
 		if err != nil {
 			t.Errorf("Failed to get status for file %d: %v", i, err)
 		}
