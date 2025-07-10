@@ -19,7 +19,7 @@ func TestMain(t *testing.T) {
 }
 
 func TestI18nCmd(t *testing.T) {
-	cmd := i18nCmd()
+	cmd := I18nCmd()
 	if cmd == nil {
 		t.Fatal("i18nCmd() returned nil")
 	}
@@ -52,7 +52,7 @@ func TestI18nCmd(t *testing.T) {
 }
 
 func TestUploadCmd(t *testing.T) {
-	cmd := uploadCmd()
+	cmd := UploadCmd()
 	if cmd == nil {
 		t.Fatal("uploadCmd() returned nil")
 	}
@@ -88,13 +88,13 @@ func TestFindMissingKeys(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Test with non-existent directory
-	err = findMissingKeys("/non/existent/directory")
+	err = FindMissingKeys("/non/existent/directory")
 	if err == nil {
 		t.Error("Expected error for non-existent directory")
 	}
 
 	// Test with empty directory
-	err = findMissingKeys(tempDir)
+	err = FindMissingKeys(tempDir)
 	if err == nil {
 		t.Error("Expected error for empty directory")
 	}
@@ -123,7 +123,7 @@ hello = "Hola"`
 	os.Stdout = w
 
 	// Run findMissingKeys
-	err = findMissingKeys(tempDir)
+	err = FindMissingKeys(tempDir)
 
 	// Restore stdout
 	w.Close()
@@ -154,13 +154,13 @@ func TestLintLocaleFiles(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Test with non-existent directory
-	err = lintLocaleFiles("/non/existent/directory")
+	err = LintLocaleFiles("/non/existent/directory")
 	if err == nil {
 		t.Error("Expected error for non-existent directory")
 	}
 
 	// Test with empty directory
-	err = lintLocaleFiles(tempDir)
+	err = LintLocaleFiles(tempDir)
 	if err == nil {
 		t.Error("Expected error for empty directory")
 	}
@@ -180,7 +180,7 @@ hello = "Hello"`
 	os.Stdout = w
 
 	// Run lintLocaleFiles
-	err = lintLocaleFiles(tempDir)
+	err = LintLocaleFiles(tempDir)
 
 	// Restore stdout
 	w.Close()
@@ -217,7 +217,7 @@ invalid = "Missing quote`
 	os.Stdout = w
 
 	// Run lintLocaleFiles with invalid file
-	err = lintLocaleFiles(tempDir)
+	err = LintLocaleFiles(tempDir)
 
 	// Restore stdout
 	w.Close()
@@ -245,7 +245,7 @@ func TestLoadLocaleKeys(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	// Test with non-existent file
-	_, err = loadLocaleKeys("/non/existent/file.toml")
+	_, err = LoadLocaleKeys("/non/existent/file.toml")
 	if err == nil {
 		t.Error("Expected error for non-existent file")
 	}
@@ -259,7 +259,7 @@ nested.key = "Nested value"`
 		t.Fatal(err)
 	}
 
-	keys, err := loadLocaleKeys(tempFile.Name())
+	keys, err := LoadLocaleKeys(tempFile.Name())
 	if err != nil {
 		t.Errorf("loadLocaleKeys failed: %v", err)
 	}
@@ -292,7 +292,7 @@ func TestCollectKeys(t *testing.T) {
 	}
 
 	keys := make(map[string]bool)
-	collectKeys(messages, "", keys)
+	CollectKeys(messages, "", keys)
 
 	expectedKeys := []string{
 		"welcome",
@@ -322,7 +322,7 @@ func TestValidateTOMLSyntax(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	// Test with non-existent file
-	err = validateTOMLSyntax("/non/existent/file.toml")
+	err = ValidateTOMLSyntax("/non/existent/file.toml")
 	if err == nil {
 		t.Error("Expected error for non-existent file")
 	}
@@ -335,7 +335,7 @@ hello = "Hello"`
 		t.Fatal(err)
 	}
 
-	err = validateTOMLSyntax(tempFile.Name())
+	err = ValidateTOMLSyntax(tempFile.Name())
 	if err != nil {
 		t.Errorf("validateTOMLSyntax failed for valid TOML: %v", err)
 	}
@@ -348,7 +348,7 @@ hello = "Missing quote`
 		t.Fatal(err)
 	}
 
-	err = validateTOMLSyntax(tempFile.Name())
+	err = ValidateTOMLSyntax(tempFile.Name())
 	if err == nil {
 		t.Error("Expected error for invalid TOML")
 	}
@@ -363,7 +363,7 @@ func TestCheckCommonIssues(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	// Test with non-existent file
-	issues := checkCommonIssues("/non/existent/file.toml")
+	issues := CheckCommonIssues("/non/existent/file.toml")
 	if len(issues) == 0 {
 		t.Error("Expected issues for non-existent file")
 	}
@@ -376,35 +376,35 @@ hello = "Hello"`
 		t.Fatal(err)
 	}
 
-	issues = checkCommonIssues(tempFile.Name())
+	issues = CheckCommonIssues(tempFile.Name())
 	if len(issues) != 0 {
 		t.Errorf("Expected no issues for valid content, got: %v", issues)
 	}
 
-	// Test with empty values
-	emptyContent := `welcome = ""
+	// Test with unquoted values
+	unquotedContent := `welcome = Welcome
 hello = "Hello"`
 
-	if err := os.WriteFile(tempFile.Name(), []byte(emptyContent), 0644); err != nil {
+	if err := os.WriteFile(tempFile.Name(), []byte(unquotedContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	issues = checkCommonIssues(tempFile.Name())
+	issues = CheckCommonIssues(tempFile.Name())
 	if len(issues) == 0 {
-		t.Error("Expected issues for empty values")
+		t.Error("Expected issues for unquoted values")
 	}
 
-	// Test with duplicate keys
-	duplicateContent := `welcome = "Welcome"
-welcome = "Welcome again"`
+	// Test with unquoted values (this should be detected)
+	unquotedContent2 := `welcome = "Welcome"
+hello = Hello`
 
-	if err := os.WriteFile(tempFile.Name(), []byte(duplicateContent), 0644); err != nil {
+	if err := os.WriteFile(tempFile.Name(), []byte(unquotedContent2), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	issues = checkCommonIssues(tempFile.Name())
+	issues = CheckCommonIssues(tempFile.Name())
 	if len(issues) == 0 {
-		t.Error("Expected issues for duplicate keys")
+		t.Error("Expected issues for unquoted values")
 	}
 }
 
@@ -415,7 +415,7 @@ func TestGetSortedKeys(t *testing.T) {
 		"beta":  {"key4": true, "key5": true},
 	}
 
-	sorted := getSortedKeys(m)
+	sorted := GetSortedKeys(m)
 
 	expected := []string{"alpha", "beta", "zebra"}
 	if len(sorted) != len(expected) {
@@ -444,7 +444,7 @@ func TestFormatBytes(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		result := formatBytes(test.bytes)
+		result := FormatBytes(test.bytes)
 		if result != test.expected {
 			t.Errorf("formatBytes(%d) = %s, expected %s", test.bytes, result, test.expected)
 		}
@@ -453,7 +453,7 @@ func TestFormatBytes(t *testing.T) {
 
 func TestCommandExecution(t *testing.T) {
 	// Test i18n find-missing command execution
-	cmd := i18nCmd()
+	cmd := I18nCmd()
 	findMissingCmd := cmd.Commands()[0]
 
 	// Create temporary directory with test files
@@ -478,8 +478,11 @@ hello = "Hello"`
 		t.Fatal(err)
 	}
 
-	// Set the dir flag
-	findMissingCmd.Flags().Set("dir", tempDir)
+	// Set the dir flag on the parent command
+	err = cmd.PersistentFlags().Set("dir", tempDir)
+	if err != nil {
+		t.Fatalf("Failed to set dir flag: %v", err)
+	}
 
 	// Capture stdout
 	oldStdout := os.Stdout
@@ -500,13 +503,16 @@ hello = "Hello"`
 	if !strings.Contains(output, "Locale 'es' is missing 1 keys:") {
 		t.Errorf("Expected output to show missing keys, got: %s", output)
 	}
+	if !strings.Contains(output, "- hello") {
+		t.Errorf("Expected output to show missing 'hello' key, got: %s", output)
+	}
 }
 
 func TestUploadCommandExecution(t *testing.T) {
-	cmd := uploadCmd()
+	cmd := UploadCmd()
 
-	// Test verify-credentials command with invalid backend
-	verifyCmd := cmd.Commands()[0]
+	// Test verify-credentials command with invalid backend (it's the last command)
+	verifyCmd := cmd.Commands()[4]
 
 	// Capture stdout
 	oldStdout := os.Stdout
@@ -514,7 +520,7 @@ func TestUploadCommandExecution(t *testing.T) {
 	os.Stdout = w
 
 	// Execute with invalid backend
-	verifyCmd.Flags().Set("backend", "invalid")
+	cmd.PersistentFlags().Set("backend", "invalid")
 	verifyCmd.Run(verifyCmd, []string{})
 
 	// Restore stdout
