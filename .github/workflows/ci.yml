@@ -136,7 +136,6 @@ jobs:
     - name: Build
       run: |
         go build -v -ldflags="-s -w" ./cmd/gokit-cli
-        go build -v -ldflags="-s -w" ./cmd/gokit
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
@@ -144,9 +143,7 @@ jobs:
         name: build-${{ matrix.os }}
         path: |
           gokit-cli
-          gokit
           gokit-cli.exe
-          gokit.exe
 
   # Release
   release:
@@ -172,22 +169,19 @@ jobs:
         mkdir -p dist
         # Linux
         GOOS=linux GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/gokit-cli-linux-amd64 ./cmd/gokit-cli
-        GOOS=linux GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/gokit-linux-amd64 ./cmd/gokit
         
         # Windows
         GOOS=windows GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/gokit-cli-windows-amd64.exe ./cmd/gokit-cli
-        GOOS=windows GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/gokit-windows-amd64.exe ./cmd/gokit
         
         # macOS
         GOOS=darwin GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/gokit-cli-darwin-amd64 ./cmd/gokit-cli
-        GOOS=darwin GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/gokit-darwin-amd64 ./cmd/gokit
 
     - name: Create release archive
       run: |
         cd dist
-        tar -czf gokit-linux-amd64.tar.gz gokit-cli-linux-amd64 gokit-linux-amd64
-        zip gokit-windows-amd64.zip gokit-cli-windows-amd64.exe gokit-windows-amd64.exe
-        tar -czf gokit-darwin-amd64.tar.gz gokit-cli-darwin-amd64 gokit-darwin-amd64
+        tar -czf gokit-cli-linux-amd64.tar.gz gokit-cli-linux-amd64
+        zip gokit-cli-windows-amd64.zip gokit-cli-windows-amd64.exe
+        tar -czf gokit-cli-darwin-amd64.tar.gz gokit-cli-darwin-amd64
 
     - name: Upload release assets
       uses: actions/upload-artifact@v4
