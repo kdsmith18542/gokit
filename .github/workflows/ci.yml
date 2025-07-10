@@ -135,7 +135,10 @@ jobs:
 
     - name: Build
       run: |
+        echo "Building gokit-cli..."
         go build -v -ldflags="-s -w" ./cmd/gokit-cli
+        echo "Building gokit..."
+        go build -v -ldflags="-s -w" ./cmd/gokit || echo "gokit build failed, continuing..."
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
@@ -143,7 +146,9 @@ jobs:
         name: build-${{ matrix.os }}
         path: |
           gokit-cli
+          gokit
           gokit-cli.exe
+          gokit.exe
 
   # Release
   release:
@@ -167,21 +172,37 @@ jobs:
     - name: Build release binaries
       run: |
         mkdir -p dist
+        echo "Building gokit-cli for all platforms..."
         # Linux
         GOOS=linux GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/gokit-cli-linux-amd64 ./cmd/gokit-cli
+        GOOS=linux GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/gokit-linux-amd64 ./cmd/gokit || echo "gokit linux build failed"
         
         # Windows
         GOOS=windows GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/gokit-cli-windows-amd64.exe ./cmd/gokit-cli
+        GOOS=windows GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/gokit-windows-amd64.exe ./cmd/gokit || echo "gokit windows build failed"
         
         # macOS
         GOOS=darwin GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/gokit-cli-darwin-amd64 ./cmd/gokit-cli
+        GOOS=darwin GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/gokit-darwin-amd64 ./cmd/gokit || echo "gokit darwin build failed"
 
     - name: Create release archive
       run: |
         cd dist
+        # Create archives for gokit-cli (always available)
         tar -czf gokit-cli-linux-amd64.tar.gz gokit-cli-linux-amd64
         zip gokit-cli-windows-amd64.zip gokit-cli-windows-amd64.exe
         tar -czf gokit-cli-darwin-amd64.tar.gz gokit-cli-darwin-amd64
+        
+        # Create archives for gokit if available
+        if [ -f gokit-linux-amd64 ]; then
+          tar -czf gokit-linux-amd64.tar.gz gokit-linux-amd64
+        fi
+        if [ -f gokit-windows-amd64.exe ]; then
+          zip gokit-windows-amd64.zip gokit-windows-amd64.exe
+        fi
+        if [ -f gokit-darwin-amd64 ]; then
+          tar -czf gokit-darwin-amd64.tar.gz gokit-darwin-amd64
+        fi
 
     - name: Upload release assets
       uses: actions/upload-artifact@v4
