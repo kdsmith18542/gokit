@@ -23,7 +23,7 @@ func TestPrintUsage(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	// Call printUsage
+	// Call printUsage function
 	printUsage()
 
 	// Restore stdout
