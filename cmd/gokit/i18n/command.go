@@ -325,7 +325,7 @@ func scanSourceFiles(dir string) []string {
 			return nil // Continue scanning other files
 		}
 
-		content, err := ioutil.ReadFile(path)
+		content, err := ioutil.ReadFile(path) // #nosec G304 -- Path validated by validatePath function
 		if err != nil {
 			fmt.Printf("Error reading file %s: %v\n", path, err)
 			return nil // Continue scanning other files
@@ -405,7 +405,7 @@ func getKeysFromLocaleFile(filepath string) []string {
 		return nil
 	}
 
-	data, err := ioutil.ReadFile(filepath)
+	data, err := ioutil.ReadFile(filepath) // #nosec G304 -- Path validated by validatePath function
 	if err != nil {
 		return nil
 	}
@@ -427,7 +427,7 @@ func findEmptyKeysInFile(filepath string) []string {
 		return nil
 	}
 
-	data, err := ioutil.ReadFile(filepath)
+	data, err := ioutil.ReadFile(filepath) // #nosec G304 -- Path validated by validatePath function
 	if err != nil {
 		return nil
 	}
