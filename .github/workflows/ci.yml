@@ -31,25 +31,16 @@ jobs:
     - name: Install dependencies
       run: go mod download
 
-    - name: Run golangci-lint
-      uses: golangci/golangci-lint-action@v8
+    - name: Lint (golangci-lint)
+      uses: golangci/golangci-lint-action@v4
       with:
         version: latest
-        args: --timeout=5m --verbose
+        args: --timeout=5m
 
-    - name: Run security scan
-      uses: aquasecurity/trivy-action@master
+    - name: Security Scan (gosec)
+      uses: securego/gosec@master
       with:
-        scan-type: 'fs'
-        scan-ref: '.'
-        format: 'sarif'
-        output: 'trivy-results.sarif'
-
-    - name: Upload Trivy scan results
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
-      with:
-        sarif_file: 'trivy-results.sarif'
+        args: ./...
 
     - name: Run tests with coverage
       run: |
@@ -59,7 +50,6 @@ jobs:
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
       with:
-        file: ./coverage.out
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
