@@ -10,7 +10,7 @@ func TestNewAzureBlob(t *testing.T) {
 	// Test with valid configuration
 	config := AzureConfig{
 		AccountName: "testaccount",
-		AccountKey:  "testkey",
+		AccountKey:  "dGVzdGtleQ==", // base64 encoded "testkey"
 		Container:   "testcontainer",
 		BaseURL:     "https://testaccount.blob.core.windows.net",
 	}
@@ -39,7 +39,7 @@ func TestNewAzureBlob(t *testing.T) {
 	}
 
 	// Test with empty container
-	config.AccountKey = "testkey"
+	config.AccountKey = "dGVzdGtleQ==" // base64 encoded "testkey"
 	config.Container = ""
 	_, err = NewAzureBlob(config)
 	if err == nil {
@@ -51,7 +51,7 @@ func TestAzureBlob_Store(t *testing.T) {
 	// Create a mock Azure blob storage
 	config := AzureConfig{
 		AccountName: "testaccount",
-		AccountKey:  "testkey",
+		AccountKey:  "dGVzdGtleQ==", // base64 encoded "testkey"
 		Container:   "testcontainer",
 		BaseURL:     "https://testaccount.blob.core.windows.net",
 	}
@@ -76,7 +76,7 @@ func TestAzureBlob_Store(t *testing.T) {
 func TestAzureBlob_GetURL(t *testing.T) {
 	config := AzureConfig{
 		AccountName: "testaccount",
-		AccountKey:  "testkey",
+		AccountKey:  "dGVzdGtleQ==", // base64 encoded "testkey"
 		Container:   "testcontainer",
 		BaseURL:     "https://testaccount.blob.core.windows.net",
 	}
@@ -95,6 +95,7 @@ func TestAzureBlob_GetURL(t *testing.T) {
 
 	// Test with default base URL
 	config.BaseURL = ""
+	config.AccountKey = "dGVzdGtleQ==" // base64 encoded "testkey"
 	azure, err = NewAzureBlob(config)
 	if err != nil {
 		t.Fatalf("NewAzureBlob failed: %v", err)
@@ -110,7 +111,7 @@ func TestAzureBlob_GetURL(t *testing.T) {
 func TestAzureBlob_Delete(t *testing.T) {
 	config := AzureConfig{
 		AccountName: "testaccount",
-		AccountKey:  "testkey",
+		AccountKey:  "dGVzdGtleQ==", // base64 encoded "testkey"
 		Container:   "testcontainer",
 	}
 
@@ -129,7 +130,7 @@ func TestAzureBlob_Delete(t *testing.T) {
 func TestAzureBlob_Exists(t *testing.T) {
 	config := AzureConfig{
 		AccountName: "testaccount",
-		AccountKey:  "testkey",
+		AccountKey:  "dGVzdGtleQ==", // base64 encoded "testkey"
 		Container:   "testcontainer",
 	}
 
@@ -148,7 +149,7 @@ func TestAzureBlob_Exists(t *testing.T) {
 func TestAzureBlob_GetSize(t *testing.T) {
 	config := AzureConfig{
 		AccountName: "testaccount",
-		AccountKey:  "testkey",
+		AccountKey:  "dGVzdGtleQ==", // base64 encoded "testkey"
 		Container:   "testcontainer",
 	}
 
@@ -170,7 +171,7 @@ func TestAzureBlob_GetSize(t *testing.T) {
 func TestAzureBlob_ListFiles(t *testing.T) {
 	config := AzureConfig{
 		AccountName: "testaccount",
-		AccountKey:  "testkey",
+		AccountKey:  "dGVzdGtleQ==", // base64 encoded "testkey"
 		Container:   "testcontainer",
 	}
 
@@ -192,7 +193,7 @@ func TestAzureBlob_ListFiles(t *testing.T) {
 func TestAzureBlob_GetSignedURL(t *testing.T) {
 	config := AzureConfig{
 		AccountName: "testaccount",
-		AccountKey:  "testkey",
+		AccountKey:  "dGVzdGtleQ==", // base64 encoded "testkey"
 		Container:   "testcontainer",
 	}
 
@@ -214,7 +215,7 @@ func TestAzureBlob_GetSignedURL(t *testing.T) {
 func TestAzureBlob_GetReader(t *testing.T) {
 	config := AzureConfig{
 		AccountName: "testaccount",
-		AccountKey:  "testkey",
+		AccountKey:  "dGVzdGtleQ==", // base64 encoded "testkey"
 		Container:   "testcontainer",
 	}
 
@@ -236,7 +237,7 @@ func TestAzureBlob_GetReader(t *testing.T) {
 func TestAzureBlob_GetBucketInfo(t *testing.T) {
 	config := AzureConfig{
 		AccountName: "testaccount",
-		AccountKey:  "testkey",
+		AccountKey:  "dGVzdGtleQ==", // base64 encoded "testkey"
 		Container:   "testcontainer",
 	}
 
@@ -258,7 +259,7 @@ func TestAzureBlob_GetBucketInfo(t *testing.T) {
 func TestAzureBlob_Close(t *testing.T) {
 	config := AzureConfig{
 		AccountName: "testaccount",
-		AccountKey:  "testkey",
+		AccountKey:  "dGVzdGtleQ==", // base64 encoded "testkey"
 		Container:   "testcontainer",
 	}
 
