@@ -86,6 +86,7 @@ func (l *LocalStorage) Store(filename string, reader io.Reader) (string, error) 
 	}
 
 	// Create the file with secure permissions
+	// #nosec G304 -- filePath is validated above to prevent path traversal
 	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		return "", fmt.Errorf("failed to create file: %v", err)

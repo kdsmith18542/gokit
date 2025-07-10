@@ -477,6 +477,15 @@ func UploadCmd() *cobra.Command {
 			}
 			defer stor.Close()
 
+			// Validate file path to prevent path traversal
+			if !filepath.IsAbs(filePath) {
+				filePath = filepath.Clean(filePath)
+				if strings.Contains(filePath, "..") {
+					fmt.Printf("Path traversal not allowed: %s\n", filePath)
+					return
+				}
+			}
+
 			file, err := os.Open(filePath)
 			if err != nil {
 				fmt.Printf("Failed to open file: %v\n", err)
