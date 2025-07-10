@@ -786,7 +786,7 @@ var builtinSanitizers = map[string]Sanitizer{
 
 		for i := 1; i < len(words); i++ {
 			if len(words[i]) > 0 {
-				words[i] = strings.ToUpper(words[i][:1]) + words[i][1:]
+				result.WriteString(strings.ToUpper(words[i][:1]) + words[i][1:])
 			}
 		}
 		return result.String()
