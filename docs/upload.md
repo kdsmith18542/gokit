@@ -271,45 +271,36 @@ processor.OnSuccess(
 
 ## CLI Integration
 
-The upload package integrates with the GoKit CLI for storage backend management:
+The upload package integrates with the GoKit CLI for storage management:
 
-### Verify Credentials
+#### Upload a File
 
 ```bash
-# Verify S3 credentials
+gokit-cli upload upload-file ./document.pdf --backend s3 --bucket my-bucket
+```
+
+#### Generate a Pre-signed URL
+
+```bash
+gokit-cli upload generate-url document.pdf --backend s3 --bucket my-bucket --expiration 1h
+```
+
+#### List Files in Storage
+
+```bash
+gokit-cli upload list-files --backend s3 --bucket my-bucket
+```
+
+#### Delete a File from Storage
+
+```bash
+gokit-cli upload delete-file document.pdf --backend s3 --bucket my-bucket
+```
+
+#### Verify Storage Credentials
+
+```bash
 gokit-cli upload verify-credentials --backend s3 --bucket my-bucket --region us-west-2
-
-# Verify GCS credentials
-gokit-cli upload verify-credentials --backend gcs --bucket my-bucket --credentials-file ./key.json
-
-# Verify Azure credentials
-gokit-cli upload verify-credentials --backend azure --azure-container my-container
-```
-
-### List Files
-
-```bash
-# List files in S3 bucket
-gokit-cli upload list-files --backend s3 --bucket my-bucket --region us-west-2
-
-# List files in GCS bucket
-gokit-cli upload list-files --backend gcs --bucket my-bucket --credentials-file ./key.json
-
-# List files in Azure container
-gokit-cli upload list-files --backend azure --azure-container my-container
-```
-
-### Upload File
-
-```bash
-# Upload to S3
-gokit-cli upload upload-file ./image.jpg --backend s3 --bucket my-bucket --region us-west-2
-
-# Upload to GCS
-gokit-cli upload upload-file ./document.pdf --backend gcs --bucket my-bucket --credentials-file ./key.json
-
-# Upload to Azure
-gokit-cli upload upload-file ./data.csv --backend azure --azure-container my-container
 ```
 
 ## Middleware Integration
@@ -716,3 +707,47 @@ func TestUploadMiddleware(t *testing.T) {
 - Use async processing for post-upload operations
 - Consider CDN integration for better delivery
 - Monitor storage costs and implement lifecycle policies 
+
+## Observability Integration
+
+GoKit upload supports OpenTelemetry-based observability for file upload, storage, and processing operations.
+
+### Enabling Observability
+
+```go
+import "github.com/kdsmith18542/gokit/observability"
+import "github.com/kdsmith18542/gokit/upload"
+
+func main() {
+    observability.Init(observability.Config{
+        ServiceName:    "my-app",
+        ServiceVersion: "1.0.0",
+        Environment:    "production",
+    })
+    upload.EnableObservability()
+}
+```
+
+### Observed Upload Example
+
+```go
+func uploadHandler(w http.ResponseWriter, r *http.Request) {
+    results, err := processor.ProcessWithContext(r.Context(), r, "file")
+    if err != nil {
+        // Handle upload error (traced and metered)
+        return
+    }
+    // Upload operation is traced and metered
+    for _, result := range results {
+        fmt.Fprintf(w, "File uploaded: %s\n", result.URL)
+    }
+}
+```
+
+## Security
+
+Recent security improvements include:
+- **Path Traversal Protection**: All file operations validate paths to prevent directory traversal attacks.
+- **Input Validation**: CLI and API inputs are strictly validated and sanitized.
+- **Credential Handling**: Storage credentials are never logged and should be provided via environment variables or secure flags.
+- **i18n Editor Security**: The web-based i18n editor should not be exposed in production without authentication. 

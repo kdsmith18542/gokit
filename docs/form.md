@@ -33,7 +33,7 @@ type UserForm struct {
 func handler(w http.ResponseWriter, r *http.Request) {
     var user UserForm
     
-    errs := form.DecodeAndValidate(r.Context(), r, &user)
+    errs := form.DecodeAndValidateWithContext(r.Context(), r, &user)
     if errs != nil {
         // Handle validation errors
         return
@@ -438,3 +438,38 @@ func TestRegistrationForm(t *testing.T) {
 - Use context timeouts for async validators
 - Consider using sync.Pool for frequently used validator instances
 - Sanitization is applied before validation to reduce unnecessary validation calls 
+
+## Observability Integration
+
+GoKit form validation supports OpenTelemetry-based observability for tracing and metrics.
+
+### Enabling Observability
+
+```go
+import "github.com/kdsmith18542/gokit/observability"
+import "github.com/kdsmith18542/gokit/form"
+
+func main() {
+    // Initialize observability (optional)
+    observability.Init(observability.Config{
+        ServiceName:    "my-app",
+        ServiceVersion: "1.0.0",
+        Environment:    "production",
+    })
+    form.EnableObservability()
+}
+```
+
+### Observed Validation Example
+
+```go
+func handler(w http.ResponseWriter, r *http.Request) {
+    var user UserForm
+    errs := form.DecodeAndValidateWithContext(r.Context(), r, &user)
+    if errs != nil {
+        // Handle validation errors (traced and metered)
+        return
+    }
+    // User data is validated and ready to use
+}
+``` 
