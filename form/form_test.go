@@ -42,7 +42,7 @@ type TestOptionalForm struct {
 
 func TestDecodeAndValidate_ValidForm(t *testing.T) {
 	form := url.Values{}
-	form.Set("email", "test@example.com")
+	form.Set("email", TestEmail)
 	form.Set("password", "password123")
 	form.Set("age", "25")
 	form.Set("name", "  JOHN DOE  ")
@@ -211,10 +211,18 @@ func TestDecodeAndValidate_MultipartForm(t *testing.T) {
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 
-	writer.WriteField("email", "test@example.com")
-	writer.WriteField("password", "password123")
-	writer.WriteField("age", "25")
-	writer.Close()
+	if err := writer.WriteField("email", "test@example.com"); err != nil {
+		t.Fatalf("Failed to write email field: %v", err)
+	}
+	if err := writer.WriteField("password", "password123"); err != nil {
+		t.Fatalf("Failed to write password field: %v", err)
+	}
+	if err := writer.WriteField("age", "25"); err != nil {
+		t.Fatalf("Failed to write age field: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Failed to close writer: %v", err)
+	}
 
 	req, _ := http.NewRequest("POST", "/test", &buf)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -656,7 +664,7 @@ func TestAdvancedConditionalValidation(t *testing.T) {
 				"confirm_password": "different123",
 			}),
 			expected: ValidationErrors{
-				"confirm_password": []string{"Must match the password field"},
+				"confirm_password": []string{"Must match the \"password\" field"},
 			},
 		},
 		{
@@ -682,7 +690,7 @@ func TestAdvancedConditionalValidation(t *testing.T) {
 				"email":    "john_doe",
 			}),
 			expected: ValidationErrors{
-				"email": []string{"Must not match the value of username"},
+				"email": []string{"Must not match the value of \"username\""},
 			},
 		},
 		{
@@ -708,7 +716,7 @@ func TestAdvancedConditionalValidation(t *testing.T) {
 				"max_age": "18",
 			}),
 			expected: ValidationErrors{
-				"max_age": []string{"Must be greater than min_age"},
+				"max_age": []string{"Must be greater than \"min_age\""},
 			},
 		},
 		{
@@ -746,7 +754,7 @@ func TestAdvancedConditionalValidation(t *testing.T) {
 				"max_age": "18",
 			}),
 			expected: ValidationErrors{
-				"max_age": []string{"Must be greater than or equal to min_age"},
+				"max_age": []string{"Must be greater than or equal to \"min_age\""},
 			},
 		},
 		{
@@ -772,7 +780,7 @@ func TestAdvancedConditionalValidation(t *testing.T) {
 				"min_price": "100.50",
 			}),
 			expected: ValidationErrors{
-				"min_price": []string{"Must be less than max_price"},
+				"min_price": []string{"Must be less than \"max_price\""},
 			},
 		},
 		{
@@ -810,7 +818,7 @@ func TestAdvancedConditionalValidation(t *testing.T) {
 				"min_price": "100.50",
 			}),
 			expected: ValidationErrors{
-				"min_price": []string{"Must be less than or equal to max_price"},
+				"min_price": []string{"Must be less than or equal to \"max_price\""},
 			},
 		},
 		{
@@ -836,7 +844,7 @@ func TestAdvancedConditionalValidation(t *testing.T) {
 				"end_date":   "2024-01-01",
 			}),
 			expected: ValidationErrors{
-				"end_date": []string{"Must be after start_date"},
+				"end_date": []string{"Must be after \"start_date\""},
 			},
 		},
 		{
@@ -862,7 +870,7 @@ func TestAdvancedConditionalValidation(t *testing.T) {
 				"start_date": "2024-12-31",
 			}),
 			expected: ValidationErrors{
-				"start_date": []string{"Must be before end_date"},
+				"start_date": []string{"Must be before \"end_date\""},
 			},
 		},
 		{
@@ -888,8 +896,8 @@ func TestAdvancedConditionalValidation(t *testing.T) {
 			expected: ValidationErrors{
 				"company_name": []string{"This field is required when account_type is business"},
 				"tax_id":       []string{"This field is required when account_type is business"},
-				"end_year":     []string{"Must be greater than start_year"},
-				"end_date":     []string{"Must be after start_date"},
+				"end_year":     []string{"Must be greater than \"start_year\""},
+				"end_date":     []string{"Must be after \"start_date\""},
 			},
 		},
 	}

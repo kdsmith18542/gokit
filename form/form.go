@@ -243,7 +243,8 @@ func DecodeAndValidateWithContext(ctx context.Context, r *http.Request, v interf
 	}
 
 	// Parse multipart form if needed
-	if r.MultipartForm == nil && strings.Contains(r.Header.Get("Content-Type"), "multipart/form-data") {
+	contentType := r.Header.Get("Content-Type")
+	if r.MultipartForm == nil && strings.Contains(contentType, "multipart/form-data") {
 		if err := r.ParseMultipartForm(32 << 20); err != nil {
 			errors["_form"] = []string{"Failed to parse multipart form data"}
 			if obs := getObserver(); obs != nil {
@@ -292,11 +293,11 @@ func DecodeAndValidateWithContext(ctx context.Context, r *http.Request, v interf
 	}
 
 	// Second pass: validate fields
-	errors = validateFormFields(val, fieldValues)
+	validationErrors := validateFormFields(val, fieldValues)
 
-	handleFormObservability(ctx, formName, errors, start)
+	handleFormObservability(ctx, formName, validationErrors, start)
 
-	return errors
+	return validationErrors
 }
 
 // applySanitizers applies a chain of sanitizers to a value
@@ -358,51 +359,74 @@ func validateFieldWithContext(value, validateTag string, context ValidationConte
 	return errors
 }
 
+// isNumericType checks if a reflect.Kind represents a numeric type
+func isNumericType(kind reflect.Kind) bool {
+	return kind == reflect.Int || kind == reflect.Int8 || kind == reflect.Int16 ||
+		kind == reflect.Int32 || kind == reflect.Int64 || kind == reflect.Uint ||
+		kind == reflect.Uint8 || kind == reflect.Uint16 || kind == reflect.Uint32 ||
+		kind == reflect.Uint64 || kind == reflect.Float32 || kind == reflect.Float64
+}
+
 // builtinValidatorWithKind handles min/max with type awareness
 func builtinValidatorWithKind(value, param string, kind reflect.Kind, validatorName string) string {
 	if value == "" {
 		return ""
 	}
+
 	if validatorName == "min" {
-		minVal, err := strconv.ParseFloat(param, 64)
-		if err != nil {
-			return ""
-		}
-		if kind == reflect.Int || kind == reflect.Int8 || kind == reflect.Int16 || kind == reflect.Int32 || kind == reflect.Int64 || kind == reflect.Uint || kind == reflect.Uint8 || kind == reflect.Uint16 || kind == reflect.Uint32 || kind == reflect.Uint64 || kind == reflect.Float32 || kind == reflect.Float64 {
-			num, err := strconv.ParseFloat(value, 64)
-			if err != nil {
-				return ErrMustBeNumber
-			}
-			if num < minVal {
-				return fmt.Sprintf("Must be at least %v", param)
-			}
-			return ""
-		}
-		// fallback to string length
-		if len(value) < int(minVal) {
-			return fmt.Sprintf("Must be at least %d characters long", int(minVal))
-		}
-		return ""
+		return validateMin(value, param, kind)
 	} else if validatorName == "max" {
-		maxVal, err := strconv.ParseFloat(param, 64)
+		return validateMax(value, param, kind)
+	}
+	return ""
+}
+
+// validateMin validates minimum value constraints
+func validateMin(value, param string, kind reflect.Kind) string {
+	minVal, err := strconv.ParseFloat(param, 64)
+	if err != nil {
+		return ""
+	}
+
+	if isNumericType(kind) {
+		num, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			return ""
+			return ErrMustBeNumber
 		}
-		if kind == reflect.Int || kind == reflect.Int8 || kind == reflect.Int16 || kind == reflect.Int32 || kind == reflect.Int64 || kind == reflect.Uint || kind == reflect.Uint8 || kind == reflect.Uint16 || kind == reflect.Uint32 || kind == reflect.Uint64 || kind == reflect.Float32 || kind == reflect.Float64 {
-			num, err := strconv.ParseFloat(value, 64)
-			if err != nil {
-				return ErrMustBeNumber
-			}
-			if num > maxVal {
-				return fmt.Sprintf("Must be no more than %v", param)
-			}
-			return ""
-		}
-		// fallback to string length
-		if len(value) > int(maxVal) {
-			return fmt.Sprintf("Must be no more than %d characters long", int(maxVal))
+		if num < minVal {
+			return fmt.Sprintf("Must be at least %v", param)
 		}
 		return ""
+	}
+
+	// fallback to string length
+	if len(value) < int(minVal) {
+		return fmt.Sprintf("Must be at least %d characters long", int(minVal))
+	}
+	return ""
+}
+
+// validateMax validates maximum value constraints
+func validateMax(value, param string, kind reflect.Kind) string {
+	maxVal, err := strconv.ParseFloat(param, 64)
+	if err != nil {
+		return ""
+	}
+
+	if isNumericType(kind) {
+		num, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return ErrMustBeNumber
+		}
+		if num > maxVal {
+			return fmt.Sprintf("Must be no more than %v", param)
+		}
+		return ""
+	}
+
+	// fallback to string length
+	if len(value) > int(maxVal) {
+		return fmt.Sprintf("Must be no more than %d characters long", int(maxVal))
 	}
 	return ""
 }
@@ -487,7 +511,7 @@ var builtinValidators = map[string]func(value, param string) string{
 		if value == "" {
 			return ""
 		}
-		urlRegex := regexp.MustCompile(`^https?://[^\s/$.?#].[^\s]*$`)
+		urlRegex := regexp.MustCompile(`^https?://[^\s/$.?#].\S*$`)
 		if !urlRegex.MatchString(value) {
 			return ErrInvalidURL
 		}
@@ -583,7 +607,7 @@ var builtinContextValidators = map[string]ContextValidator{
 		}
 		otherValue := context.Get(param)
 		if value != otherValue {
-			return fmt.Sprintf("Must match the value of %s", param)
+			return fmt.Sprintf("Must match the value of %q", param)
 		}
 		return ""
 	},
@@ -594,7 +618,7 @@ var builtinContextValidators = map[string]ContextValidator{
 		}
 		otherValue := context.Get(param)
 		if value == otherValue {
-			return fmt.Sprintf("Must not match the value of %s", param)
+			return fmt.Sprintf("Must not match the value of %q", param)
 		}
 		return ""
 	},
@@ -611,7 +635,7 @@ var builtinContextValidators = map[string]ContextValidator{
 		if otherValue != "" {
 			otherVal, err := strconv.ParseFloat(otherValue, 64)
 			if err == nil && val <= otherVal {
-				return fmt.Sprintf("Must be greater than %s", param)
+				return fmt.Sprintf("Must be greater than %q", param)
 			}
 		}
 		return ""
@@ -629,7 +653,7 @@ var builtinContextValidators = map[string]ContextValidator{
 		if otherValue != "" {
 			otherVal, err := strconv.ParseFloat(otherValue, 64)
 			if err == nil && val < otherVal {
-				return fmt.Sprintf("Must be greater than or equal to %s", param)
+				return fmt.Sprintf("Must be greater than or equal to %q", param)
 			}
 		}
 		return ""
@@ -647,7 +671,7 @@ var builtinContextValidators = map[string]ContextValidator{
 		if otherValue != "" {
 			otherVal, err := strconv.ParseFloat(otherValue, 64)
 			if err == nil && val >= otherVal {
-				return fmt.Sprintf("Must be less than %s", param)
+				return fmt.Sprintf("Must be less than %q", param)
 			}
 		}
 		return ""
@@ -665,7 +689,7 @@ var builtinContextValidators = map[string]ContextValidator{
 		if otherValue != "" {
 			otherVal, err := strconv.ParseFloat(otherValue, 64)
 			if err == nil && val > otherVal {
-				return fmt.Sprintf("Must be less than or equal to %s", param)
+				return fmt.Sprintf("Must be less than or equal to %q", param)
 			}
 		}
 		return ""
@@ -683,7 +707,7 @@ var builtinContextValidators = map[string]ContextValidator{
 		otherValue := context.Get(param)
 		if otherValue != "" && dateRegex.MatchString(otherValue) {
 			if value <= otherValue {
-				return fmt.Sprintf("Must be after %s", param)
+				return fmt.Sprintf("Must be after %q", param)
 			}
 		}
 		return ""
@@ -701,7 +725,7 @@ var builtinContextValidators = map[string]ContextValidator{
 		otherValue := context.Get(param)
 		if otherValue != "" && dateRegex.MatchString(otherValue) {
 			if value >= otherValue {
-				return fmt.Sprintf("Must be before %s", param)
+				return fmt.Sprintf("Must be before %q", param)
 			}
 		}
 		return ""
@@ -710,18 +734,10 @@ var builtinContextValidators = map[string]ContextValidator{
 
 // builtinSanitizers contains all built-in sanitization functions
 var builtinSanitizers = map[string]Sanitizer{
-	"trim": func(value string) string {
-		return strings.TrimSpace(value)
-	},
-	"to_lower": func(value string) string {
-		return strings.ToLower(value)
-	},
-	"to_upper": func(value string) string {
-		return strings.ToUpper(value)
-	},
-	"escape_html": func(value string) string {
-		return html.EscapeString(value)
-	},
+	"trim":        strings.TrimSpace,
+	"to_lower":    strings.ToLower,
+	"to_upper":    strings.ToUpper,
+	"escape_html": html.EscapeString,
 	"strip_numeric": func(value string) string {
 		var result strings.Builder
 		for _, char := range value {
@@ -769,7 +785,7 @@ var builtinSanitizers = map[string]Sanitizer{
 		}
 		// Capitalize first letter of each word
 		for i := range words {
-			if len(words[i]) > 0 {
+			if words[i] != "" {
 				words[i] = strings.ToUpper(words[i][:1]) + words[i][1:]
 			}
 		}
@@ -785,7 +801,7 @@ var builtinSanitizers = map[string]Sanitizer{
 		result.WriteString(words[0]) // First word lowercase
 
 		for i := 1; i < len(words); i++ {
-			if len(words[i]) > 0 {
+			if words[i] != "" {
 				result.WriteString(strings.ToUpper(words[i][:1]) + words[i][1:])
 			}
 		}
@@ -839,7 +855,7 @@ func init() {
 		if value == "" {
 			return ""
 		}
-		urlRegex := regexp.MustCompile(`^(http|https)://[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}(/\S*)?$`)
+		urlRegex := regexp.MustCompile(`^(https?)://[a-zA-Z0-9\-.]+\.[a-zA-Z]{2,3}(/\S*)?$`)
 		if !urlRegex.MatchString(value) {
 			return ErrInvalidURL
 		}
@@ -848,7 +864,7 @@ func init() {
 
 	RegisterContextValidator("eqfield", func(value, param string, ctx ValidationContext) string {
 		if ctx.Get(param) != value {
-			return fmt.Sprintf("Must match the %s field", param)
+			return fmt.Sprintf("Must match the %q field", param)
 		}
 		return ""
 	})
@@ -877,7 +893,7 @@ func init() {
 			return ErrMustBeNumber
 		}
 		if val1 <= val2 {
-			return fmt.Sprintf("Must be greater than %s", param)
+			return fmt.Sprintf("Must be greater than %q", param)
 		}
 		return ""
 	})
@@ -893,7 +909,7 @@ func init() {
 			return ErrMustBeNumber
 		}
 		if val1 >= val2 {
-			return fmt.Sprintf("Must be less than %s", param)
+			return fmt.Sprintf("Must be less than %q", param)
 		}
 		return ""
 	})

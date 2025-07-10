@@ -346,11 +346,22 @@ func createRequestWithLocale(locale string) *http.Request {
 func createUploadRequest(filename, content string) *http.Request {
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
-	part, _ := writer.CreateFormFile("file", filename)
-	part.Write([]byte(content))
-	writer.Close()
+	part, err := writer.CreateFormFile("file", filename)
+	if err != nil {
+		log.Fatalf("Failed to create form file: %v", err)
+	}
 
-	req, _ := http.NewRequest("POST", "/upload", &buf)
+	if _, err := part.Write([]byte(content)); err != nil {
+		log.Fatalf("Failed to write file content: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		log.Fatalf("Failed to close writer: %v", err)
+	}
+
+	req, err := http.NewRequest("POST", "/upload", &buf)
+	if err != nil {
+		log.Fatalf("Failed to create request: %v", err)
+	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	return req
 }

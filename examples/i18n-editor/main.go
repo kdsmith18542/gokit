@@ -13,7 +13,9 @@ import (
 func main() {
 	localesDir := "./locales"
 	if _, err := os.Stat(localesDir); os.IsNotExist(err) {
-		_ = os.Mkdir(localesDir, 0755)
+		if err := os.Mkdir(localesDir, 0755); err != nil {
+			log.Fatalf("Failed to create locales directory: %v", err)
+		}
 
 		// Create comprehensive sample translation files
 		_ = os.WriteFile(localesDir+"/en.toml", []byte(`# English locale file

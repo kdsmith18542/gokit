@@ -405,8 +405,14 @@ func TestHookConcurrency(t *testing.T) {
 				t.Errorf("Failed to create form file: %v", err)
 				return
 			}
-			part.Write([]byte("test file content"))
-			writer.Close()
+			if _, err := part.Write([]byte("test file content")); err != nil {
+				t.Errorf("Failed to write part content for TestHookConcurrency: %v", err)
+				return
+			}
+			if err := writer.Close(); err != nil {
+				t.Errorf("Failed to close writer for TestHookConcurrency: %v", err)
+				return
+			}
 
 			req := httptest.NewRequest("POST", "/upload", &buf)
 			req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -452,8 +458,12 @@ func TestProcessValidation(t *testing.T) {
 		t.Fatalf("Failed to create form file: %v", err)
 	}
 	// Write more than 1KB
-	part.Write(make([]byte, 2048))
-	writer.Close()
+	if _, err := part.Write(make([]byte, 2048)); err != nil {
+		t.Fatalf("Failed to write part content for TestProcessValidation: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Failed to close writer for TestProcessValidation: %v", err)
+	}
 
 	req := httptest.NewRequest("POST", "/upload", &buf)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -490,7 +500,9 @@ func TestProcessNoFiles(t *testing.T) {
 	// Create a test request without files
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
-	writer.Close()
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Failed to close writer for TestProcessNoFiles: %v", err)
+	}
 
 	req := httptest.NewRequest("POST", "/upload", &buf)
 	req.Header.Set("Content-Type", writer.FormDataContentType())

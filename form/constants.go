@@ -12,7 +12,11 @@ const (
 
 // Common test values
 const (
-	TestEmail = "test@example.com"
-	TestFile  = "test.txt"
-	TestValue = "test"
+	TestEmail     = "test@example.com"
+	TestFile      = "test.txt"
+	TestValue     = "test"
+	TestJPG       = "test.jpg"
+	TestBefore    = "before"
+	TestHola      = "Hola"
+	TestCompleted = "completed"
 )

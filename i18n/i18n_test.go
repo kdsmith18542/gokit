@@ -31,11 +31,11 @@ itemCount.one = "{{.Count}} elemento"
 itemCount.other = "{{.Count}} elementos"`
 
 	// Write test files
-	if err := os.WriteFile(filepath.Join(tempDir, "en.toml"), []byte(enContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tempDir, "en.toml"), []byte(enContent), 0600); err != nil {
 		t.Fatalf("Failed to create test locale file: %v", err)
 	}
 
-	if err := os.WriteFile(filepath.Join(tempDir, "es.toml"), []byte(esContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tempDir, "es.toml"), []byte(esContent), 0600); err != nil {
 		t.Fatalf("Failed to create test locale file: %v", err)
 	}
 

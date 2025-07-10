@@ -353,8 +353,12 @@ func TestSuccessHandler(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create form file: %v", err)
 	}
-	part.Write([]byte("test file content"))
-	writer.Close()
+	if _, err := part.Write([]byte("test file content")); err != nil {
+		t.Fatalf("Failed to write part content for TestSuccessHandler: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Failed to close writer for TestSuccessHandler: %v", err)
+	}
 
 	req := httptest.NewRequest("POST", "/upload", &buf)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -395,7 +399,9 @@ func TestCustomUploadErrorHandler(t *testing.T) {
 	customHandler := func(w http.ResponseWriter, r *http.Request, err error) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusTeapot)
-		w.Write([]byte("Custom upload error handler"))
+		if _, err := w.Write([]byte("Custom upload error handler")); err != nil {
+			t.Fatalf("Failed to write custom error handler response: %v", err)
+		}
 	}
 
 	// Create mock storage
@@ -416,8 +422,12 @@ func TestCustomUploadErrorHandler(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create form file: %v", err)
 	}
-	part.Write(make([]byte, 2048)) // 2KB file
-	writer.Close()
+	if _, err := part.Write(make([]byte, 2048)); err != nil {
+		t.Fatalf("Failed to write part content for TestCustomUploadErrorHandler: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Failed to close writer for TestCustomUploadErrorHandler: %v", err)
+	}
 
 	req := httptest.NewRequest("POST", "/upload", &buf)
 	req.Header.Set("Content-Type", writer.FormDataContentType())

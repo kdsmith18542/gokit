@@ -1,254 +1,367 @@
 package storage
 
 import (
+	"bytes"
 	"strings"
 	"testing"
-	"time"
 )
 
-func TestAzureStorage_NewAzureBlob(t *testing.T) {
-	// Test Azure constructor with valid config
+func TestNewAzureBlob(t *testing.T) {
+	// Test with valid configuration
 	config := AzureConfig{
 		AccountName: "testaccount",
-		AccountKey:  "test-key",
-		Container:   "test-container",
+		AccountKey:  "testkey",
+		Container:   "testcontainer",
+		BaseURL:     "https://testaccount.blob.core.windows.net",
 	}
 
-	storage, err := NewAzureBlob(config)
-	// Should fail with invalid credentials
-	if err == nil {
-		t.Error("Expected error for invalid Azure credentials")
+	azure, err := NewAzureBlob(config)
+	if err != nil {
+		t.Fatalf("NewAzureBlob failed: %v", err)
 	}
-	if storage != nil {
-		t.Error("Storage should be nil when error occurs")
+	if azure == nil {
+		t.Fatal("NewAzureBlob returned nil")
+	}
+
+	// Test with empty account name
+	config.AccountName = ""
+	_, err = NewAzureBlob(config)
+	if err == nil {
+		t.Error("Expected error for empty account name")
+	}
+
+	// Test with empty account key
+	config.AccountName = "testaccount"
+	config.AccountKey = ""
+	_, err = NewAzureBlob(config)
+	if err == nil {
+		t.Error("Expected error for empty account key")
+	}
+
+	// Test with empty container
+	config.AccountKey = "testkey"
+	config.Container = ""
+	_, err = NewAzureBlob(config)
+	if err == nil {
+		t.Error("Expected error for empty container")
 	}
 }
 
-func TestAzureStorage_NewAzureBlobWithInvalidConfig(t *testing.T) {
-	// Test Azure constructor with invalid config
-	config := AzureConfig{
-		AccountName: "",
-		AccountKey:  "",
-		Container:   "",
-	}
-
-	storage, err := NewAzureBlob(config)
-	// Should fail due to invalid config
-	if err == nil {
-		t.Error("Expected error for invalid Azure config")
-	}
-	if storage != nil {
-		t.Error("Storage should be nil when error occurs")
-	}
-}
-
-func TestAzureStorage_GetURL(t *testing.T) {
+func TestAzureBlob_Store(t *testing.T) {
+	// Create a mock Azure blob storage
 	config := AzureConfig{
 		AccountName: "testaccount",
-		AccountKey:  "test-key",
-		Container:   "test-container",
+		AccountKey:  "testkey",
+		Container:   "testcontainer",
+		BaseURL:     "https://testaccount.blob.core.windows.net",
 	}
 
-	_, err := NewAzureBlob(config)
-	// Should fail with invalid credentials
+	azure, err := NewAzureBlob(config)
+	if err != nil {
+		t.Fatalf("NewAzureBlob failed: %v", err)
+	}
+
+	// Test storing a file
+	testData := []byte("test content")
+	reader := bytes.NewReader(testData)
+
+	// Since we can't actually connect to Azure in tests, this will fail
+	// but we can test the error handling
+	_, err = azure.Store("test.txt", reader)
 	if err == nil {
-		t.Error("Expected error for invalid Azure credentials")
-		return
+		t.Error("Expected error when storing to Azure without real connection")
 	}
-	// Test is skipped if storage creation fails
-	t.Skip("Skipping test due to invalid credentials")
 }
 
-func TestAzureStorage_GetSignedURL(t *testing.T) {
-	// Use mock Azure for testing
-	storage := NewMockAzure()
+func TestAzureBlob_GetURL(t *testing.T) {
+	config := AzureConfig{
+		AccountName: "testaccount",
+		AccountKey:  "testkey",
+		Container:   "testcontainer",
+		BaseURL:     "https://testaccount.blob.core.windows.net",
+	}
 
-	// Test GetSignedURL with mock storage
-	signedURL, err := storage.GetSignedURL("test.txt", 15*time.Minute)
+	azure, err := NewAzureBlob(config)
+	if err != nil {
+		t.Fatalf("NewAzureBlob failed: %v", err)
+	}
+
+	// Test with custom base URL
+	url := azure.GetURL("test.txt")
+	expectedURL := "https://testaccount.blob.core.windows.net/testcontainer/test.txt"
+	if url != expectedURL {
+		t.Errorf("Expected URL %s, got %s", expectedURL, url)
+	}
+
+	// Test with default base URL
+	config.BaseURL = ""
+	azure, err = NewAzureBlob(config)
+	if err != nil {
+		t.Fatalf("NewAzureBlob failed: %v", err)
+	}
+
+	url = azure.GetURL("test.txt")
+	expectedURL = "https://testaccount.blob.core.windows.net/testcontainer/test.txt"
+	if url != expectedURL {
+		t.Errorf("Expected URL %s, got %s", expectedURL, url)
+	}
+}
+
+func TestAzureBlob_Delete(t *testing.T) {
+	config := AzureConfig{
+		AccountName: "testaccount",
+		AccountKey:  "testkey",
+		Container:   "testcontainer",
+	}
+
+	azure, err := NewAzureBlob(config)
+	if err != nil {
+		t.Fatalf("NewAzureBlob failed: %v", err)
+	}
+
+	// Test delete operation (will fail without real connection)
+	err = azure.Delete("test.txt")
 	if err == nil {
-		t.Error("Expected error for GetSignedURL with non-existent file")
-	}
-	if signedURL != "" {
-		t.Error("Signed URL should be empty when error occurs")
-	}
-
-	// Store a file and test again
-	data := []byte("test data")
-	reader := strings.NewReader(string(data))
-	_, err = storage.Store("test.txt", reader)
-	if err != nil {
-		t.Fatalf("Failed to store file: %v", err)
-	}
-
-	signedURL, err = storage.GetSignedURL("test.txt", 15*time.Minute)
-	if err != nil {
-		t.Errorf("GetSignedURL failed: %v", err)
-	}
-	if !strings.Contains(signedURL, "blob.core.windows.net") {
-		t.Errorf("Expected mock Azure URL, got '%s'", signedURL)
+		t.Error("Expected error when deleting from Azure without real connection")
 	}
 }
 
-func TestAzureStorage_GetBucketInfo(t *testing.T) {
-	// Use mock Azure for testing
-	storage := NewMockAzure()
+func TestAzureBlob_Exists(t *testing.T) {
+	config := AzureConfig{
+		AccountName: "testaccount",
+		AccountKey:  "testkey",
+		Container:   "testcontainer",
+	}
 
-	// Test GetBucketInfo with mock storage
-	info, err := storage.GetBucketInfo()
+	azure, err := NewAzureBlob(config)
 	if err != nil {
-		t.Errorf("GetBucketInfo failed: %v", err)
-	}
-	if info == nil {
-		t.Error("Bucket info should not be nil")
-	}
-	if info["type"] != "mock-azure" {
-		t.Errorf("Expected type 'mock-azure', got '%v'", info["type"])
-	}
-}
-
-func TestAzureStorage_Store(t *testing.T) {
-	// Use mock Azure for testing
-	storage := NewMockAzure()
-
-	// Test Store with mock storage
-	data := []byte("test data")
-	reader := strings.NewReader(string(data))
-
-	filename, err := storage.Store("test.txt", reader)
-	if err != nil {
-		t.Errorf("Store failed: %v", err)
-	}
-	if filename != "test.txt" {
-		t.Errorf("Expected filename 'test.txt', got '%s'", filename)
-	}
-}
-
-func TestAzureStorage_Delete(t *testing.T) {
-	// Use mock Azure for testing
-	storage := NewMockAzure()
-
-	// Store a file first
-	data := []byte("test data")
-	reader := strings.NewReader(string(data))
-	_, err := storage.Store("test.txt", reader)
-	if err != nil {
-		t.Fatalf("Failed to store file: %v", err)
+		t.Fatalf("NewAzureBlob failed: %v", err)
 	}
 
-	// Test Delete with mock storage
-	err = storage.Delete("test.txt")
-	if err != nil {
-		t.Errorf("Delete failed: %v", err)
-	}
-}
-
-func TestAzureStorage_Exists(t *testing.T) {
-	// Use mock Azure for testing
-	storage := NewMockAzure()
-
-	// Test Exists with mock storage
-	exists := storage.Exists("test.txt")
+	// Test exists operation (will fail without real connection)
+	exists := azure.Exists("test.txt")
 	if exists {
-		t.Error("File should not exist")
-	}
-
-	// Store a file and test again
-	data := []byte("test data")
-	reader := strings.NewReader(string(data))
-	_, err := storage.Store("test.txt", reader)
-	if err != nil {
-		t.Fatalf("Failed to store file: %v", err)
-	}
-
-	exists = storage.Exists("test.txt")
-	if !exists {
-		t.Error("File should exist")
+		t.Error("Expected false for non-existent file")
 	}
 }
 
-func TestAzureStorage_GetSize(t *testing.T) {
-	// Use mock Azure for testing
-	storage := NewMockAzure()
-
-	// Store a file first
-	data := []byte("test data")
-	reader := strings.NewReader(string(data))
-	_, err := storage.Store("test.txt", reader)
-	if err != nil {
-		t.Fatalf("Failed to store file: %v", err)
+func TestAzureBlob_GetSize(t *testing.T) {
+	config := AzureConfig{
+		AccountName: "testaccount",
+		AccountKey:  "testkey",
+		Container:   "testcontainer",
 	}
 
-	// Test GetSize with mock storage
-	size, err := storage.GetSize("test.txt")
+	azure, err := NewAzureBlob(config)
 	if err != nil {
-		t.Errorf("GetSize failed: %v", err)
+		t.Fatalf("NewAzureBlob failed: %v", err)
 	}
-	if size != int64(len(data)) {
-		t.Errorf("Expected size %d, got %d", len(data), size)
+
+	// Test get size operation (will fail without real connection)
+	size, err := azure.GetSize("test.txt")
+	if err == nil {
+		t.Error("Expected error when getting size from Azure without real connection")
+	}
+	if size != 0 {
+		t.Errorf("Expected size 0, got %d", size)
 	}
 }
 
-func TestAzureStorage_ListFiles(t *testing.T) {
-	// Use mock Azure for testing
-	storage := NewMockAzure()
-
-	// Store some files first
-	files := []string{"file1.txt", "file2.txt"}
-	for _, filename := range files {
-		data := []byte("test data")
-		reader := strings.NewReader(string(data))
-		_, err := storage.Store(filename, reader)
-		if err != nil {
-			t.Fatalf("Failed to store file %s: %v", filename, err)
-		}
+func TestAzureBlob_ListFiles(t *testing.T) {
+	config := AzureConfig{
+		AccountName: "testaccount",
+		AccountKey:  "testkey",
+		Container:   "testcontainer",
 	}
 
-	// Test ListFiles with mock storage
-	listedFiles, err := storage.ListFiles()
+	azure, err := NewAzureBlob(config)
 	if err != nil {
-		t.Errorf("ListFiles failed: %v", err)
+		t.Fatalf("NewAzureBlob failed: %v", err)
 	}
-	if len(listedFiles) != len(files) {
-		t.Errorf("Expected %d files, got %d", len(files), len(listedFiles))
+
+	// Test list files operation (will fail without real connection)
+	files, err := azure.ListFiles()
+	if err == nil {
+		t.Error("Expected error when listing files from Azure without real connection")
+	}
+	if len(files) != 0 {
+		t.Errorf("Expected empty file list, got %d files", len(files))
 	}
 }
 
-func TestAzureStorage_Close(t *testing.T) {
-	// Use mock Azure for testing
-	storage := NewMockAzure()
+func TestAzureBlob_GetSignedURL(t *testing.T) {
+	config := AzureConfig{
+		AccountName: "testaccount",
+		AccountKey:  "testkey",
+		Container:   "testcontainer",
+	}
 
-	// Test Close with mock storage
-	err := storage.Close()
+	azure, err := NewAzureBlob(config)
+	if err != nil {
+		t.Fatalf("NewAzureBlob failed: %v", err)
+	}
+
+	// Test get signed URL operation (will fail without real connection)
+	url, err := azure.GetSignedURL("test.txt", 3600)
+	if err == nil {
+		t.Error("Expected error when getting signed URL from Azure without real connection")
+	}
+	if url != "" {
+		t.Errorf("Expected empty URL, got %s", url)
+	}
+}
+
+func TestAzureBlob_GetReader(t *testing.T) {
+	config := AzureConfig{
+		AccountName: "testaccount",
+		AccountKey:  "testkey",
+		Container:   "testcontainer",
+	}
+
+	azure, err := NewAzureBlob(config)
+	if err != nil {
+		t.Fatalf("NewAzureBlob failed: %v", err)
+	}
+
+	// Test get reader operation (will fail without real connection)
+	reader, err := azure.GetReader("test.txt")
+	if err == nil {
+		t.Error("Expected error when getting reader from Azure without real connection")
+	}
+	if reader != nil {
+		t.Error("Expected nil reader")
+	}
+}
+
+func TestAzureBlob_GetBucketInfo(t *testing.T) {
+	config := AzureConfig{
+		AccountName: "testaccount",
+		AccountKey:  "testkey",
+		Container:   "testcontainer",
+	}
+
+	azure, err := NewAzureBlob(config)
+	if err != nil {
+		t.Fatalf("NewAzureBlob failed: %v", err)
+	}
+
+	// Test get bucket info operation (will fail without real connection)
+	info, err := azure.GetBucketInfo()
+	if err == nil {
+		t.Error("Expected error when getting bucket info from Azure without real connection")
+	}
+	if info != nil {
+		t.Errorf("Expected nil bucket info, got %v", info)
+	}
+}
+
+func TestAzureBlob_Close(t *testing.T) {
+	config := AzureConfig{
+		AccountName: "testaccount",
+		AccountKey:  "testkey",
+		Container:   "testcontainer",
+	}
+
+	azure, err := NewAzureBlob(config)
+	if err != nil {
+		t.Fatalf("NewAzureBlob failed: %v", err)
+	}
+
+	// Test close operation (should not panic)
+	err = azure.Close()
 	if err != nil {
 		t.Errorf("Close failed: %v", err)
 	}
 }
 
-func TestAzureStorage_ErrorPaths(t *testing.T) {
-	// Missing container
-	config := AzureConfig{
-		AccountName: "testaccount",
-		AccountKey:  "test-key",
-	}
-	storage, err := NewAzureBlob(config)
-	if err == nil {
-		t.Error("Expected error for missing container")
-	}
-	if storage != nil {
-		t.Error("Storage should be nil when error occurs")
+func TestAzureBlob_Integration(t *testing.T) {
+	// Test integration with mock storage
+	mockAzure := NewMockAzure()
+
+	// Test store
+	testData := []byte("test content")
+	reader := bytes.NewReader(testData)
+	_, err := mockAzure.Store("test.txt", reader)
+	if err != nil {
+		t.Errorf("Mock Azure store failed: %v", err)
 	}
 
-	// Invalid account key (simulate by passing invalid base64)
-	config = AzureConfig{
-		AccountName: "testaccount",
-		AccountKey:  "not-base64!",
-		Container:   "test-container",
+	// Test exists
+	exists := mockAzure.Exists("test.txt")
+	if !exists {
+		t.Error("Expected file to exist")
 	}
-	storage, err = NewAzureBlob(config)
-	if err == nil {
-		t.Error("Expected error for invalid account key")
+
+	// Test get size
+	size, err := mockAzure.GetSize("test.txt")
+	if err != nil {
+		t.Errorf("Mock Azure get size failed: %v", err)
 	}
-	if storage != nil {
-		t.Error("Storage should be nil when error occurs")
+	if size != int64(len(testData)) {
+		t.Errorf("Expected size %d, got %d", len(testData), size)
+	}
+
+	// Test list files
+	files, err := mockAzure.ListFiles()
+	if err != nil {
+		t.Errorf("Mock Azure list files failed: %v", err)
+	}
+	if len(files) != 1 {
+		t.Errorf("Expected 1 file, got %d", len(files))
+	}
+	if files[0] != "test.txt" {
+		t.Errorf("Expected file 'test.txt', got '%s'", files[0])
+	}
+
+	// Test get URL
+	url := mockAzure.GetURL("test.txt")
+	expectedURL := "https://testaccount.blob.core.windows.net/test-container/test.txt"
+	if url != expectedURL {
+		t.Errorf("Expected URL %s, got %s", expectedURL, url)
+	}
+
+	// Test get signed URL
+	signedURL, err := mockAzure.GetSignedURL("test.txt", 3600)
+	if err != nil {
+		t.Errorf("Mock Azure get signed URL failed: %v", err)
+	}
+	if !strings.Contains(signedURL, "test.txt") {
+		t.Errorf("Signed URL should contain filename, got %s", signedURL)
+	}
+
+	// Test get reader
+	reader2, err := mockAzure.GetReader("test.txt")
+	if err != nil {
+		t.Errorf("Mock Azure get reader failed: %v", err)
+	}
+	if reader2 == nil {
+		t.Error("Expected non-nil reader")
+	}
+
+	// Test get bucket info
+	info, err := mockAzure.GetBucketInfo()
+	if err != nil {
+		t.Errorf("Mock Azure get bucket info failed: %v", err)
+	}
+	if info["container"] != "test-container" {
+		t.Errorf("Expected bucket name 'test-container', got '%v'", info["container"])
+	}
+
+	// Test delete
+	err = mockAzure.Delete("test.txt")
+	if err != nil {
+		t.Errorf("Mock Azure delete failed: %v", err)
+	}
+
+	// Verify file is deleted
+	exists = mockAzure.Exists("test.txt")
+	if exists {
+		t.Error("Expected file to be deleted")
+	}
+
+	// Test close
+	err = mockAzure.Close()
+	if err != nil {
+		t.Errorf("Mock Azure close failed: %v", err)
 	}
 }

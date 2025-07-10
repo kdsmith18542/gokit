@@ -23,10 +23,10 @@ greeting = "Hello, {{.Name}}!"`
 	esContent := `welcome = "¡Bienvenido a GoKit!"
 greeting = "¡Hola, {{.Name}}!"`
 
-	if err := os.WriteFile(filepath.Join(tempDir, "en.toml"), []byte(enContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tempDir, "en.toml"), []byte(enContent), 0600); err != nil {
 		t.Fatalf("Failed to write en.toml: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(tempDir, "es.toml"), []byte(esContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tempDir, "es.toml"), []byte(esContent), 0600); err != nil {
 		t.Fatalf("Failed to write es.toml: %v", err)
 	}
 

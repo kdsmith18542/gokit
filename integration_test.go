@@ -690,9 +690,13 @@ func (suite *IntegrationTestSuite) testCloudStorage(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create form file: %v", err)
 		}
-		part.Write(fileData)
+		if _, err := part.Write(fileData); err != nil {
+			t.Fatalf("Failed to write part content for S3Backend: %v", err)
+		}
 
-		writer.Close()
+		if err := writer.Close(); err != nil {
+			t.Fatalf("Failed to close writer for S3Backend: %v", err)
+		}
 
 		req := httptest.NewRequest("POST", "/upload/s3", body)
 		req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -732,9 +736,13 @@ func (suite *IntegrationTestSuite) testCloudStorage(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create form file: %v", err)
 		}
-		part.Write(fileData)
+		if _, err := part.Write(fileData); err != nil {
+			t.Fatalf("Failed to write part content for GCSBackend: %v", err)
+		}
 
-		writer.Close()
+		if err := writer.Close(); err != nil {
+			t.Fatalf("Failed to close writer for GCSBackend: %v", err)
+		}
 
 		req := httptest.NewRequest("POST", "/upload/gcs", body)
 		req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -777,7 +785,9 @@ func (suite *IntegrationTestSuite) testPresignedURLs(t *testing.T) {
 		expiration := 10 * time.Minute
 
 		// First, simulate storing a file so GetSignedURL has something to work with
-		suite.localStorage.(*storage.MockStorage).Store(fileName, bytes.NewReader([]byte("dummy content")))
+		if _, err := suite.localStorage.(*storage.MockStorage).Store(fileName, bytes.NewReader([]byte("dummy content"))); err != nil {
+			t.Fatalf("Failed to store dummy content for presigned GET URL test: %v", err)
+		}
 
 		// For GET operations, we can use the Processor's method since the file exists
 		urlResult, err := suite.uploadProcessor.GenerateUploadURL(

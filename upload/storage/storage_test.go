@@ -1112,7 +1112,7 @@ func TestStorageSecurity(t *testing.T) {
 
 		symlinkFile := filepath.Join(t.TempDir(), "symlink.txt")
 		if err := os.Symlink(sensitiveFile, symlinkFile); err != nil {
-			t.Fatalf("Failed to create symlink: %v", err)
+			t.Fatalf("Failed to create symlink for test: %v", err)
 		}
 
 		// Try to store through symlink

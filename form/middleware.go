@@ -16,8 +16,6 @@ type contextKey string
 const (
 	// formDataKey is the context key for form data.
 	formDataKey contextKey = "formData"
-	// validationErrorsKey is the context key for validation errors.
-	validationErrorsKey contextKey = "validationErrors"
 )
 
 // ValidationErrorHandler is a function type for handling validation errors

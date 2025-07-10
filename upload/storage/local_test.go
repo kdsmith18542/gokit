@@ -70,7 +70,9 @@ func TestLocalStorage_InvalidPath(t *testing.T) {
 func TestLocalStorage_PermissionDenied(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "readonly.txt")
-	os.WriteFile(file, []byte("data"), 0400)
+	if err := os.WriteFile(file, []byte("data"), 0400); err != nil {
+		t.Fatalf("Failed to create readonly file for test: %v", err)
+	}
 	storage := NewLocal(dir)
 	// Try to overwrite a readonly file
 	_, err := storage.Store("readonly.txt", strings.NewReader("newdata"))

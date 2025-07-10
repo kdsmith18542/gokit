@@ -97,10 +97,13 @@ func DefaultErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
 //	    }
 //
 //	    w.Header().Set("Content-Type", "application/json")
-//	    json.NewEncoder(w).Encode(map[string]interface{}{
+//	    if err := json.NewEncoder(w).Encode(map[string]interface{}{
 //	        "status": "success",
 //	        "uploaded": len(results),
-//	    })
+//	    }); err != nil {
+//	        http.Error(w, "Failed to encode JSON response", http.StatusInternalServerError)
+//	        return
+//	    }
 //	}
 //
 // The middleware supports:
@@ -146,10 +149,13 @@ func Middleware(processor *Processor, fieldName string, errorHandler ErrorHandle
 //	    }
 //
 //	    w.Header().Set("Content-Type", "application/json")
-//	    json.NewEncoder(w).Encode(map[string]interface{}{
+//	    if err := json.NewEncoder(w).Encode(map[string]interface{}{
 //	        "uploaded": len(results),
 //	        "files": results,
-//	    })
+//	    }); err != nil {
+//	        http.Error(w, "Failed to encode JSON response", http.StatusInternalServerError)
+//	        return
+//	    }
 //	}
 //
 // For guaranteed access (when you're certain the middleware is applied):
@@ -239,10 +245,13 @@ func MustUploadResultsFromContext(ctx context.Context) []Result {
 //	    }
 //
 //	    w.Header().Set("Content-Type", "application/json")
-//	    json.NewEncoder(w).Encode(map[string]interface{}{
+//	    if err := json.NewEncoder(w).Encode(map[string]interface{}{
 //	        "success": true,
 //	        "images": results,
-//	    })
+//	    }); err != nil {
+//	        http.Error(w, "Failed to encode JSON response", http.StatusInternalServerError)
+//	        return
+//	    }
 //	}
 //
 // Use SingleUploadMiddleware when:
@@ -532,7 +541,9 @@ func HTMLUploadErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
 </html>`
 
 	if _, err := w.Write([]byte(html)); err != nil {
-		// Optionally log the error
+		// Log the error for debugging purposes if needed
+		http.Error(w, "Failed to write HTML response", http.StatusInternalServerError)
+		return
 	}
 }
 

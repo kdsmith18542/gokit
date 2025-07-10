@@ -37,7 +37,6 @@ package upload
 
 import (
 	"context"
-	"crypto/md5"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -385,7 +384,10 @@ func (rp *ResumableProcessor) handleGetStatus(w http.ResponseWriter, r *http.Req
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(session)
+	if err := json.NewEncoder(w).Encode(session); err != nil {
+		http.Error(w, "Failed to encode session response", http.StatusInternalServerError)
+		return
+	}
 }
 
 // handleAbortUpload handles upload abortion
@@ -435,7 +437,7 @@ func (rp *ResumableProcessor) isAllowedMIMEType(mimeType string) bool {
 }
 
 func (rp *ResumableProcessor) calculateChecksum(data []byte) string {
-	hash := md5.Sum(data)
+	hash := sha256.Sum256(data)
 	return hex.EncodeToString(hash[:])
 }
 
