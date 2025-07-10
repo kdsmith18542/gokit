@@ -1,0 +1,68 @@
+run:
+  timeout: 5m
+  go: "1.23"
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - gofmt
+    - goimports
+    - govet
+    - errcheck
+    - staticcheck
+    - gosimple
+    - ineffassign
+    - unused
+    - misspell
+    - gosec
+    - prealloc
+    - gocritic
+    - revive
+    - gocyclo
+    - dupl
+    - goconst
+    - gomnd
+    - lll
+    - nakedret
+    - noctx
+    - paralleltest
+    - testpackage
+    - tparallel
+    - wastedassign
+    - whitespace
+
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+  dupl:
+    threshold: 100
+  gomnd:
+    checks: argument,case,condition,operation,return,assign
+  lll:
+    line-length: 120
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      - dupImport
+      - ifElseChain
+      - octalLiteral
+      - whyNoLint
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gomnd
+        - gocyclo
+        - dupl
+    - path: examples/
+      linters:
+        - gomnd
+        - gocyclo
+        - dupl
+        - goconst 

@@ -1,0 +1,8 @@
+welcome = "Bienvenue"
+hello = "Bonjour"
+goodbye = "Au revoir"
+thank_you = "Merci"
+please = "S'il vous plaît"
+yes = "Oui"
+no = "Non"
+empty_key = "" 

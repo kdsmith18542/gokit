@@ -1,0 +1,206 @@
+name: Go CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  release:
+    types: [ published ]
+
+env:
+  GO111MODULE: on
+  CGO_ENABLED: 0
+
+jobs:
+  # Quality checks and testing
+  quality:
+    name: Quality & Security
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+        cache: true
+
+    - name: Install dependencies
+      run: go mod download
+
+    - name: Run golangci-lint
+      uses: golangci/golangci-lint-action@v4
+      with:
+        version: latest
+        args: --timeout=5m --verbose
+
+    - name: Run security scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+    - name: Run tests with coverage
+      run: |
+        go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+        go test -v -race ./integration_test.go
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.out
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+  # Integration tests
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+        cache: true
+
+    - name: Install dependencies
+      run: go mod download
+
+    - name: Run integration tests
+      run: |
+        go test -v -timeout=10m ./integration_test.go -run TestIntegration_CompleteWorkflow
+        go test -v -timeout=10m ./integration_test.go -run TestIntegration_CrossPackageFeatures
+
+  # Performance tests
+  performance:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+        cache: true
+
+    - name: Install dependencies
+      run: go mod download
+
+    - name: Run performance tests
+      run: |
+        go test -v -timeout=5m ./integration_test.go -run TestIntegration_Performance
+        go test -v -timeout=5m ./integration_test.go -run TestIntegration_Stress
+
+  # Multi-platform build
+  build:
+    name: Build
+    runs-on: ${{ matrix.os }}
+    needs: [quality, integration]
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        go-version: ['1.23']
+        include:
+          - os: ubuntu-latest
+            platform: linux/amd64
+          - os: windows-latest
+            platform: windows/amd64
+          - os: macos-latest
+            platform: darwin/amd64
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+        cache: true
+
+    - name: Install dependencies
+      run: go mod download
+
+    - name: Build
+      run: |
+        go build -v -ldflags="-s -w" ./cmd/gokit-cli
+        go build -v -ldflags="-s -w" ./cmd/gokit
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-${{ matrix.os }}
+        path: |
+          gokit-cli
+          gokit
+          gokit-cli.exe
+          gokit.exe
+
+  # Release
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    needs: [quality, integration, build]
+    if: github.event_name == 'release'
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+        cache: true
+
+    - name: Install dependencies
+      run: go mod download
+
+    - name: Build release binaries
+      run: |
+        # Linux
+        GOOS=linux GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/gokit-cli-linux-amd64 ./cmd/gokit-cli
+        GOOS=linux GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/gokit-linux-amd64 ./cmd/gokit
+        
+        # Windows
+        GOOS=windows GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/gokit-cli-windows-amd64.exe ./cmd/gokit-cli
+        GOOS=windows GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/gokit-windows-amd64.exe ./cmd/gokit
+        
+        # macOS
+        GOOS=darwin GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/gokit-cli-darwin-amd64 ./cmd/gokit-cli
+        GOOS=darwin GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/gokit-darwin-amd64 ./cmd/gokit
+
+    - name: Create release archive
+      run: |
+        cd dist
+        tar -czf gokit-linux-amd64.tar.gz gokit-cli-linux-amd64 gokit-linux-amd64
+        zip gokit-windows-amd64.zip gokit-cli-windows-amd64.exe gokit-windows-amd64.exe
+        tar -czf gokit-darwin-amd64.tar.gz gokit-cli-darwin-amd64 gokit-darwin-amd64
+
+    - name: Upload release assets
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-assets
+        path: dist/*.tar.gz,dist/*.zip
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: dist/*.tar.gz,dist/*.zip
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 

@@ -1,0 +1,5 @@
+welcome = "Bienvenido"
+greeting = "Hola {{.Name}}"
+item = "1 elemento"
+items = "{{.Count}} elementos"
+price = "Precio: {{.Amount}}" 

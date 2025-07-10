@@ -1,0 +1,2 @@
+registration_success = "Welcome, {{.Name}}! Your account has been created with email {{.Email}}."
+health_status = "Service is {{.Status}} as of {{.Time}}" 
