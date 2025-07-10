@@ -609,7 +609,7 @@ func (suite *IntegrationTestSuite) testResumableUpload(t *testing.T) {
 		}
 
 		if session.FileID == "" || session.Status != "uploading" || session.TotalChunks != 5 {
-			t.Fatalf("Invalid session details: %+v", session)
+			t.Fatalf("Invalid session details: FileID=%s, Status=%s, TotalChunks=%d", session.FileID, session.Status, session.TotalChunks)
 		}
 
 		// 2. Upload Chunks
