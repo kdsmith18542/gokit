@@ -211,9 +211,75 @@ jobs:
         path: dist/*.tar.gz,dist/*.zip
 
     - name: Create GitHub Release
-      uses: softprops/action-gh-release@v2
+      uses: actions/github-script@v7
       with:
-        files: dist/*.tar.gz,dist/*.zip
-        generate_release_notes: true
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          // Get the tag name from the release event
+          const tagName = context.ref.replace('refs/tags/', '');
+          
+          try {
+            // Try to create a new release
+            const release = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tagName,
+              name: `GoKit ${tagName} - Web Dev Toolkit`,
+              body: `## What's Changed\n\n- Initial release of GoKit CLI tools\n- Form validation middleware\n- Internationalization (i18n) support\n- File upload handling\n- Observability features\n\n## Downloads\n\nAttached binaries for Linux, Windows, and macOS.`,
+              draft: false,
+              prerelease: false
+            });
+            
+            console.log(`Created release: ${release.data.html_url}`);
+          } catch (error) {
+            if (error.status === 422) {
+              // Release already exists, try to update it
+              console.log('Release already exists, updating...');
+              const releases = await github.rest.repos.listReleases({
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              });
+              
+              const existingRelease = releases.data.find(r => r.tag_name === tagName);
+              if (existingRelease) {
+                await github.rest.repos.updateRelease({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  release_id: existingRelease.id,
+                  name: `GoKit ${tagName} - Web Dev Toolkit`,
+                  body: `## What's Changed\n\n- Initial release of GoKit CLI tools\n- Form validation middleware\n- Internationalization (i18n) support\n- File upload handling\n- Observability features\n\n## Downloads\n\nAttached binaries for Linux, Windows, and macOS.`
+                });
+                console.log(`Updated release: ${existingRelease.html_url}`);
+              }
+            } else {
+              throw error;
+            }
+          }
+          
+          // Upload assets
+          const distDir = 'dist';
+          const files = fs.readdirSync(distDir).filter(file => 
+            file.endsWith('.tar.gz') || file.endsWith('.zip')
+          );
+          
+          for (const file of files) {
+            const filePath = path.join(distDir, file);
+            const fileBuffer = fs.readFileSync(filePath);
+            
+            await github.rest.repos.uploadReleaseAsset({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: (await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: tagName
+              })).data.id,
+              name: file,
+              data: fileBuffer
+            });
+            console.log(`Uploaded: ${file}`);
+          }
       env:
         GITHUB_TOKEN: ${{ secrets.RELEASE_PAT }} 
