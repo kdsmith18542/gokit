@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/kdsmith18542/gokit/form"
 	"github.com/kdsmith18542/gokit/i18n"
@@ -27,7 +28,9 @@ func main() {
 
 	// Set up upload processor (local storage)
 	uploadDir := "./uploads"
-	os.MkdirAll(uploadDir, 0755)
+	if err := os.MkdirAll(uploadDir, 0750); err != nil {
+		log.Fatalf("Failed to create upload directory: %v", err)
+	}
 	localStorage := storage.NewLocal(uploadDir)
 	fileProcessor := upload.NewProcessor(localStorage, upload.Options{
 		MaxFileSize:      5 * 1024 * 1024,
@@ -58,7 +61,15 @@ func main() {
 	fmt.Println("  - POST /upload (multipart: file)")
 	fmt.Println("  - GET /greet?locale=es or Accept-Language: es")
 	fmt.Println("  - GET /uploads/<filename>")
-	log.Fatal(http.ListenAndServe(":8080", handler))
+
+	server := &http.Server{
+		Addr:         ":8080",
+		Handler:      handler,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+	log.Fatal(server.ListenAndServe())
 }
 
 // Handler for registration form

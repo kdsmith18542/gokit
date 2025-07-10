@@ -167,10 +167,10 @@ relative_time.day.one = "Tag"
 relative_time.day.other = "Tage"`
 
 	// Write locale files
-	if err := os.WriteFile(filepath.Join(tempDir, "en.toml"), []byte(enContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tempDir, "en.toml"), []byte(enContent), 0600); err != nil {
 		log.Fatalf("Failed to write en.toml: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(tempDir, "de.toml"), []byte(deContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tempDir, "de.toml"), []byte(deContent), 0600); err != nil {
 		log.Fatalf("Failed to write de.toml: %v", err)
 	}
 

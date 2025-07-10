@@ -156,6 +156,13 @@ func LintLocaleFiles(localesDir string) error {
 }
 
 func LoadLocaleKeys(filePath string) (map[string]bool, error) {
+	// Validate file path to prevent path traversal
+	if !filepath.IsAbs(filePath) {
+		filePath = filepath.Clean(filePath)
+		if strings.Contains(filePath, "..") {
+			return nil, fmt.Errorf("path traversal not allowed: %s", filePath)
+		}
+	}
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
@@ -184,6 +191,13 @@ func CollectKeys(messages map[string]interface{}, prefix string, keys map[string
 }
 
 func ValidateTOMLSyntax(filePath string) error {
+	// Validate file path to prevent path traversal
+	if !filepath.IsAbs(filePath) {
+		filePath = filepath.Clean(filePath)
+		if strings.Contains(filePath, "..") {
+			return fmt.Errorf("path traversal not allowed: %s", filePath)
+		}
+	}
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return err
@@ -194,6 +208,13 @@ func ValidateTOMLSyntax(filePath string) error {
 
 func CheckCommonIssues(filePath string) []string {
 	var issues []string
+	// Validate file path to prevent path traversal
+	if !filepath.IsAbs(filePath) {
+		filePath = filepath.Clean(filePath)
+		if strings.Contains(filePath, "..") {
+			return []string{fmt.Sprintf("Path traversal not allowed: %s", filePath)}
+		}
+	}
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return []string{fmt.Sprintf("Failed to read file: %v", err)}

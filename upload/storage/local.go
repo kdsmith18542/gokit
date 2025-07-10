@@ -67,7 +67,7 @@ func (l *LocalStorage) Store(filename string, reader io.Reader) (string, error) 
 	}
 
 	// Ensure the base directory exists
-	if err := os.MkdirAll(l.basePath, 0755); err != nil {
+	if err := os.MkdirAll(l.basePath, 0750); err != nil {
 		return "", fmt.Errorf("failed to create base directory: %v", err)
 	}
 
@@ -81,12 +81,12 @@ func (l *LocalStorage) Store(filename string, reader io.Reader) (string, error) 
 
 	// Ensure the directory for this file exists
 	dir := filepath.Dir(filePath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return "", fmt.Errorf("failed to create file directory: %v", err)
 	}
 
-	// Create the file
-	file, err := os.Create(filePath)
+	// Create the file with secure permissions
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		return "", fmt.Errorf("failed to create file: %v", err)
 	}
@@ -242,7 +242,13 @@ func (l *LocalStorage) GetReader(filename string) (io.ReadCloser, error) {
 		return nil, fmt.Errorf("file not found: %s", filename)
 	}
 
-	// Open the file for reading
+	// Open the file for reading with path validation
+	if !filepath.IsAbs(filePath) {
+		filePath = filepath.Clean(filePath)
+		if strings.Contains(filePath, "..") {
+			return nil, fmt.Errorf("path traversal not allowed: %s", filePath)
+		}
+	}
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %v", err)

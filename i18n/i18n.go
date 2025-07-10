@@ -1011,6 +1011,13 @@ func (m *Manager) loadLocales(path string) error {
 
 // loadLocaleFile loads a single locale file
 func (m *Manager) loadLocaleFile(code, path string) error {
+	// Validate file path to prevent path traversal
+	if !filepath.IsAbs(path) {
+		path = filepath.Clean(path)
+		if strings.Contains(path, "..") {
+			return fmt.Errorf("path traversal not allowed: %s", path)
+		}
+	}
 	// For now, we'll use a simple key-value format
 	// In a full implementation, you'd use a TOML parser
 	data, err := os.ReadFile(path)

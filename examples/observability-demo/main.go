@@ -88,7 +88,15 @@ func main() {
 	fmt.Println("Endpoints:")
 	fmt.Println("  POST /register - User registration with file upload")
 	fmt.Println("  GET  /health   - Health check with i18n")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+
+	server := &http.Server{
+		Addr:         ":8080",
+		Handler:      nil,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+	log.Fatal(server.ListenAndServe())
 }
 
 func handleRegistration(w http.ResponseWriter, r *http.Request, i18nManager *i18n.Manager, uploadProcessor *upload.Processor) {

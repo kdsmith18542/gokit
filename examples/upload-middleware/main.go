@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/kdsmith18542/gokit/upload"
 	"github.com/kdsmith18542/gokit/upload/storage"
@@ -13,7 +14,9 @@ import (
 
 func main() {
 	uploadDir := "./uploads"
-	os.MkdirAll(uploadDir, 0755)
+	if err := os.MkdirAll(uploadDir, 0750); err != nil {
+		log.Fatalf("Failed to create upload directory: %v", err)
+	}
 	localStorage := storage.NewLocal(uploadDir)
 	processor := upload.NewProcessor(localStorage, upload.Options{
 		MaxFileSize:      5 * 1024 * 1024,
@@ -28,7 +31,15 @@ func main() {
 	fmt.Println("Try:")
 	fmt.Println("  - POST /upload (multipart: file)")
 	fmt.Println("  - GET /uploads/<filename>")
-	log.Fatal(http.ListenAndServe(":8083", mux))
+
+	server := &http.Server{
+		Addr:         ":8083",
+		Handler:      mux,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+	log.Fatal(server.ListenAndServe())
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {

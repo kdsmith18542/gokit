@@ -172,6 +172,13 @@ func (cfg Config) handleTranslations(w http.ResponseWriter, r *http.Request) {
 
 // loadTOMLFile loads and parses a TOML file, returning a map of key-value pairs.
 func (cfg Config) loadTOMLFile(filePath string) (map[string]string, error) {
+	// Validate file path to prevent path traversal
+	if !filepath.IsAbs(filePath) {
+		filePath = filepath.Clean(filePath)
+		if strings.Contains(filePath, "..") {
+			return nil, fmt.Errorf("path traversal not allowed: %s", filePath)
+		}
+	}
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
@@ -252,7 +259,7 @@ func (cfg Config) saveLocaleFile(locale string, messages map[string]string) erro
 		buffer.WriteString(fmt.Sprintf("%s = \"%s\"\n", key, escapedValue))
 	}
 
-	if err := os.WriteFile(filePath, []byte(buffer.String()), 0644); err != nil {
+	if err := os.WriteFile(filePath, []byte(buffer.String()), 0600); err != nil {
 		return err
 	}
 	return nil

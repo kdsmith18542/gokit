@@ -38,7 +38,9 @@ func NewGCS(config GCSConfig) (Storage, error) {
 	var client *storage.Client
 	var err error
 	if config.CredentialsFile != "" {
-		os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", config.CredentialsFile)
+		if err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", config.CredentialsFile); err != nil {
+			return nil, fmt.Errorf("failed to set GOOGLE_APPLICATION_CREDENTIALS: %v", err)
+		}
 	}
 	client, err = storage.NewClient(ctx)
 	if err != nil {
@@ -57,7 +59,9 @@ func (g *GCSStorage) Store(filename string, reader io.Reader) (string, error) {
 	key := strings.TrimPrefix(filepath.Clean(filename), "/")
 	w := g.client.Bucket(g.bucket).Object(key).NewWriter(ctx)
 	if _, err := io.Copy(w, reader); err != nil {
-		w.Close()
+		if closeErr := w.Close(); closeErr != nil {
+			return "", fmt.Errorf("failed to write to GCS: %v, and failed to close writer: %v", err, closeErr)
+		}
 		return "", fmt.Errorf("failed to write to GCS: %v", err)
 	}
 	if err := w.Close(); err != nil {

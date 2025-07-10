@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/kdsmith18542/gokit/upload"
 	"github.com/kdsmith18542/gokit/upload/storage"
@@ -28,7 +29,15 @@ func main() {
 
 	fmt.Println("Resumable upload server starting on :8080")
 	fmt.Println("Visit http://localhost:8080 to test the upload")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+
+	server := &http.Server{
+		Addr:         ":8080",
+		Handler:      nil,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+	log.Fatal(server.ListenAndServe())
 }
 
 func handleHome(w http.ResponseWriter, r *http.Request) {
@@ -205,5 +214,7 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
 </html>`
 
 	w.Header().Set("Content-Type", "text/html")
-	w.Write([]byte(html))
+	if _, err := w.Write([]byte(html)); err != nil {
+		log.Printf("Failed to write response: %v", err)
+	}
 }

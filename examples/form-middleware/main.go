@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/kdsmith18542/gokit/form"
 )
@@ -23,7 +24,15 @@ func main() {
 	fmt.Println("form validation middleware demo running at http://localhost:8082/register")
 	fmt.Println("Try:")
 	fmt.Println("  - POST /register (form: email, password, name)")
-	log.Fatal(http.ListenAndServe(":8082", mux))
+
+	server := &http.Server{
+		Addr:         ":8082",
+		Handler:      mux,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+	log.Fatal(server.ListenAndServe())
 }
 
 func registerHandler(w http.ResponseWriter, r *http.Request) {

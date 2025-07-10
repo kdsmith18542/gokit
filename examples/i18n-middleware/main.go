@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/kdsmith18542/gokit/i18n"
 )
@@ -18,7 +19,15 @@ func main() {
 	fmt.Println("i18n middleware demo running at http://localhost:8081/greet")
 	fmt.Println("Try:")
 	fmt.Println("  - GET /greet?locale=es or Accept-Language: es")
-	log.Fatal(http.ListenAndServe(":8081", handler))
+
+	server := &http.Server{
+		Addr:         ":8081",
+		Handler:      handler,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+	log.Fatal(server.ListenAndServe())
 }
 
 func greetHandler(w http.ResponseWriter, r *http.Request) {
