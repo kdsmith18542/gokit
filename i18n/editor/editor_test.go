@@ -2,7 +2,6 @@ package editor
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -12,8 +11,8 @@ import (
 
 func setupTestLocales(t *testing.T) string {
 	dir := t.TempDir()
-	_ = ioutil.WriteFile(filepath.Join(dir, "en.toml"), []byte("hello = \"Hello\"\ngoodbye = \"Goodbye\"\n"), 0644)
-	_ = ioutil.WriteFile(filepath.Join(dir, "es.toml"), []byte("hello = \"Hola\"\ngoodbye = \"Adiós\"\n"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "en.toml"), []byte("hello = \"Hello\"\ngoodbye = \"Goodbye\"\n"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "es.toml"), []byte("hello = \"Hola\"\ngoodbye = \"Adiós\"\n"), 0644)
 	return dir
 }
 

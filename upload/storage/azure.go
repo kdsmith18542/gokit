@@ -149,23 +149,6 @@ func (a *AzureBlobStorage) GetReader(filename string) (io.ReadCloser, error) {
 	return response.Body, nil
 }
 
-func toBlobPermissions(perm string) sas.BlobPermissions {
-	var p sas.BlobPermissions
-	for _, c := range perm {
-		switch c {
-		case 'r':
-			p.Read = true
-		case 'w':
-			p.Write = true
-		case 'd':
-			p.Delete = true
-		case 'l':
-			p.List = true
-		}
-	}
-	return p
-}
-
 // GetBucketInfo returns metadata about the Azure Blob container.
 func (a *AzureBlobStorage) GetBucketInfo() (map[string]interface{}, error) {
 	ctx := context.Background()

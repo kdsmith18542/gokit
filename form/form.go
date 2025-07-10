@@ -346,11 +346,6 @@ func applySanitizers(value, sanitizeTag string) string {
 	return value
 }
 
-// validateField validates a field value against validation rules
-func validateField(value, validateTag string) []string {
-	return validateFieldWithContext(value, validateTag, ValidationContext{values: make(map[string]string)}, reflect.String)
-}
-
 // validateFieldWithContext validates a field value against validation rules with context
 func validateFieldWithContext(value, validateTag string, context ValidationContext, kind ...reflect.Kind) []string {
 	var errors []string
@@ -800,7 +795,20 @@ var builtinSanitizers = map[string]Sanitizer{
 		return result.String()
 	},
 	"title_case": func(value string) string {
-		return strings.Title(strings.ToLower(value))
+		if value == "" {
+			return value
+		}
+		words := strings.Fields(strings.ToLower(value))
+		if len(words) == 0 {
+			return value
+		}
+		// Capitalize first letter of each word
+		for i := range words {
+			if len(words[i]) > 0 {
+				words[i] = strings.ToUpper(words[i][:1]) + words[i][1:]
+			}
+		}
+		return strings.Join(words, " ")
 	},
 	"camel_case": func(value string) string {
 		words := strings.Fields(strings.ToLower(value))
@@ -813,7 +821,7 @@ var builtinSanitizers = map[string]Sanitizer{
 
 		for i := 1; i < len(words); i++ {
 			if len(words[i]) > 0 {
-				result.WriteString(strings.Title(words[i]))
+				words[i] = strings.ToUpper(words[i][:1]) + words[i][1:]
 			}
 		}
 		return result.String()

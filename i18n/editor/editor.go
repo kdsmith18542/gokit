@@ -32,7 +32,6 @@ package editor
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -94,7 +93,7 @@ func serveEditorUI(w http.ResponseWriter, r *http.Request) {
 // Scans the locales directory for .toml and .json files and returns their locale codes.
 // This endpoint is used by the UI to populate the locale selector.
 func (cfg EditorConfig) handleLocales(w http.ResponseWriter, r *http.Request) {
-	files, err := ioutil.ReadDir(cfg.LocalesDir)
+	files, err := os.ReadDir(cfg.LocalesDir)
 	if err != nil {
 		http.Error(w, "Failed to read locales dir", http.StatusInternalServerError)
 		return
@@ -113,7 +112,7 @@ func (cfg EditorConfig) handleLocales(w http.ResponseWriter, r *http.Request) {
 // This endpoint provides the data needed for the table-based editor interface.
 func (cfg EditorConfig) handleTranslations(w http.ResponseWriter, r *http.Request) {
 	// Get all locale files
-	files, err := ioutil.ReadDir(cfg.LocalesDir)
+	files, err := os.ReadDir(cfg.LocalesDir)
 	if err != nil {
 		http.Error(w, "Failed to read locales dir", http.StatusInternalServerError)
 		return
