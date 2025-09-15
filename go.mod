@@ -8,7 +8,7 @@ require (
 	cloud.google.com/go/storage v1.55.0
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.6.1
 	github.com/BurntSushi/toml v1.5.0
-	github.com/aws/aws-sdk-go-v2 v1.36.5
+	github.com/aws/aws-sdk-go-v2 v1.39.0
 	github.com/aws/aws-sdk-go-v2/config v1.29.17
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.83.0
 	github.com/fsnotify/fsnotify v1.9.0
@@ -48,7 +48,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sso v1.25.5 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.30.3 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.34.0 // indirect
-	github.com/aws/smithy-go v1.22.4 // indirect
+	github.com/aws/smithy-go v1.23.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cncf/xds/go v0.0.0-20250326154945-ae57f3c0d45f // indirect
 	github.com/envoyproxy/go-control-plane/envoy v1.32.4 // indirect
