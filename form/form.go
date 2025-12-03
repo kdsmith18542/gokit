@@ -44,6 +44,17 @@ import (
 	"github.com/kdsmith18542/gokit/observability"
 )
 
+// Pre-compiled regular expressions for validators and sanitizers
+// These are compiled once at package load time for better performance
+var (
+	emailRegex      = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+	urlRegex        = regexp.MustCompile(`^https?://[^\s/$.?#].\S*$`)
+	dateRegex       = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
+	whitespaceRegex = regexp.MustCompile(`\s+`)
+	snakeKebabRegex = regexp.MustCompile(`[^a-z0-9]+`)
+	htmlTagRegex    = regexp.MustCompile(`<[^>]*>`)
+)
+
 // ValidationErrors represents a map of field names to their validation error messages.
 // Each field can have multiple validation errors.
 type ValidationErrors map[string][]string
@@ -475,7 +486,6 @@ var builtinValidators = map[string]func(value, param string) string{
 		if value == "" {
 			return ""
 		}
-		emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 		if !emailRegex.MatchString(value) {
 			return ErrInvalidEmail
 		}
@@ -511,7 +521,6 @@ var builtinValidators = map[string]func(value, param string) string{
 		if value == "" {
 			return ""
 		}
-		urlRegex := regexp.MustCompile(`^https?://[^\s/$.?#].\S*$`)
 		if !urlRegex.MatchString(value) {
 			return ErrInvalidURL
 		}
@@ -700,7 +709,6 @@ var builtinContextValidators = map[string]ContextValidator{
 			return ""
 		}
 		// Parse dates (assuming YYYY-MM-DD format for simplicity)
-		dateRegex := regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 		if !dateRegex.MatchString(value) {
 			return "Must be a valid date (YYYY-MM-DD)"
 		}
@@ -718,7 +726,6 @@ var builtinContextValidators = map[string]ContextValidator{
 			return ""
 		}
 		// Parse dates (assuming YYYY-MM-DD format for simplicity)
-		dateRegex := regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 		if !dateRegex.MatchString(value) {
 			return "Must be a valid date (YYYY-MM-DD)"
 		}
@@ -758,8 +765,7 @@ var builtinSanitizers = map[string]Sanitizer{
 	},
 	"normalize_whitespace": func(value string) string {
 		// Replace multiple whitespace characters with a single space
-		spaceRegex := regexp.MustCompile(`\s+`)
-		return spaceRegex.ReplaceAllString(value, " ")
+		return whitespaceRegex.ReplaceAllString(value, " ")
 	},
 	"remove_special_chars": func(value string) string {
 		var result strings.Builder
@@ -810,19 +816,18 @@ var builtinSanitizers = map[string]Sanitizer{
 	"snake_case": func(value string) string {
 		// Convert to lowercase and replace spaces/special chars with underscores
 		value = strings.ToLower(value)
-		value = regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(value, "_")
+		value = snakeKebabRegex.ReplaceAllString(value, "_")
 		return strings.Trim(value, "_")
 	},
 	"kebab_case": func(value string) string {
 		// Convert to lowercase and replace spaces/special chars with hyphens
 		value = strings.ToLower(value)
-		value = regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(value, "-")
+		value = snakeKebabRegex.ReplaceAllString(value, "-")
 		return strings.Trim(value, "-")
 	},
 	"remove_html_tags": func(value string) string {
 		// Simple HTML tag removal (for more complex cases, consider using a proper HTML parser)
-		tagRegex := regexp.MustCompile(`<[^>]*>`)
-		return tagRegex.ReplaceAllString(value, "")
+		return htmlTagRegex.ReplaceAllString(value, "")
 	},
 	"normalize_unicode": func(value string) string {
 		// Normalize unicode characters (NFD form)
@@ -832,7 +837,7 @@ var builtinSanitizers = map[string]Sanitizer{
 
 // Initialize built-in sanitizers and context validators
 func init() {
-	// Register default built-in validators and sanitizers
+	// Register default built-in validators using pre-compiled regex
 	RegisterValidator("required", func(value string) string {
 		if strings.TrimSpace(value) == "" {
 			return ErrFieldRequired
@@ -844,7 +849,6 @@ func init() {
 		if value == "" {
 			return ""
 		}
-		emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 		if !emailRegex.MatchString(value) {
 			return ErrInvalidEmail
 		}
@@ -855,7 +859,6 @@ func init() {
 		if value == "" {
 			return ""
 		}
-		urlRegex := regexp.MustCompile(`^(https?)://[a-zA-Z0-9\-.]+\.[a-zA-Z]{2,3}(/\S*)?$`)
 		if !urlRegex.MatchString(value) {
 			return ErrInvalidURL
 		}
