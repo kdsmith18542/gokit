@@ -241,7 +241,7 @@ jobs:
         path: dist/*.tar.gz,dist/*.zip
 
     - name: Create GitHub Release
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       with:
         github-token: ${{ secrets.RELEASE_PAT }}
         script: |
