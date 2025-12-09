@@ -178,7 +178,7 @@ func (rp *ResumableProcessor) UploadChunk(ctx context.Context, fileID string, ch
 	// Read chunk data
 	chunkBytes, err := io.ReadAll(chunkData)
 	if err != nil {
-		return fmt.Errorf("failed to read chunk data: %v", err)
+		return fmt.Errorf("failed to read chunk data: %w", err)
 	}
 
 	// Calculate chunk checksum
@@ -190,7 +190,7 @@ func (rp *ResumableProcessor) UploadChunk(ctx context.Context, fileID string, ch
 
 	_, err = rp.storage.Store(chunkPath, chunkReader)
 	if err != nil {
-		return fmt.Errorf("failed to store chunk: %v", err)
+		return fmt.Errorf("failed to store chunk: %w", err)
 	}
 
 	// Update session
@@ -249,7 +249,7 @@ func (rp *ResumableProcessor) CompleteUpload(ctx context.Context, fileID string)
 	finalPath, err := rp.combineChunks(ctx, session)
 	if err != nil {
 		session.Status = "failed"
-		return nil, fmt.Errorf("failed to combine chunks: %v", err)
+		return nil, fmt.Errorf("failed to combine chunks: %w", err)
 	}
 
 	// Get the final URL
@@ -258,7 +258,7 @@ func (rp *ResumableProcessor) CompleteUpload(ctx context.Context, fileID string)
 	// Calculate final checksum
 	finalChecksum, err := rp.calculateFinalChecksum(ctx, session)
 	if err != nil {
-		return nil, fmt.Errorf("failed to calculate final checksum: %v", err)
+		return nil, fmt.Errorf("failed to calculate final checksum: %w", err)
 	}
 
 	// Update session status
@@ -448,7 +448,7 @@ func (rp *ResumableProcessor) combineChunks(ctx context.Context, session *Sessio
 	// Create a temporary file for combining chunks
 	tempFile, err := os.CreateTemp("", fmt.Sprintf("resumable_%s_*", session.FileID))
 	if err != nil {
-		return "", fmt.Errorf("failed to create temp file: %v", err)
+		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
 	defer os.Remove(tempFile.Name())
 	defer tempFile.Close()
@@ -468,14 +468,14 @@ func (rp *ResumableProcessor) combineChunks(ctx context.Context, session *Sessio
 		// Read chunk data from storage
 		chunkReader, err := rp.storage.GetReader(chunkPath)
 		if err != nil {
-			return "", fmt.Errorf("failed to read chunk %d: %v", chunkNum, err)
+			return "", fmt.Errorf("failed to read chunk %d: %w", chunkNum, err)
 		}
 		defer chunkReader.Close()
 
 		// Copy chunk data to temp file
 		written, err := io.Copy(tempFile, chunkReader)
 		if err != nil {
-			return "", fmt.Errorf("failed to write chunk %d to temp file: %v", chunkNum, err)
+			return "", fmt.Errorf("failed to write chunk %d to temp file: %w", chunkNum, err)
 		}
 
 		// Verify chunk size
@@ -486,13 +486,13 @@ func (rp *ResumableProcessor) combineChunks(ctx context.Context, session *Sessio
 
 	// Reset temp file pointer to beginning
 	if _, err := tempFile.Seek(0, 0); err != nil {
-		return "", fmt.Errorf("failed to seek temp file: %v", err)
+		return "", fmt.Errorf("failed to seek temp file: %w", err)
 	}
 
 	// Store the combined file
 	_, err = rp.storage.Store(finalPath, tempFile)
 	if err != nil {
-		return "", fmt.Errorf("failed to store combined file: %v", err)
+		return "", fmt.Errorf("failed to store combined file: %w", err)
 	}
 
 	return finalPath, nil
@@ -505,7 +505,7 @@ func (rp *ResumableProcessor) calculateFinalChecksum(ctx context.Context, sessio
 	// Read the combined file from storage
 	reader, err := rp.storage.GetReader(finalPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to read combined file: %v", err)
+		return "", fmt.Errorf("failed to read combined file: %w", err)
 	}
 	defer reader.Close()
 
@@ -513,7 +513,7 @@ func (rp *ResumableProcessor) calculateFinalChecksum(ctx context.Context, sessio
 	hash := sha256.New()
 	_, err = io.Copy(hash, reader)
 	if err != nil {
-		return "", fmt.Errorf("failed to calculate checksum: %v", err)
+		return "", fmt.Errorf("failed to calculate checksum: %w", err)
 	}
 
 	// Return hex-encoded checksum

@@ -89,7 +89,7 @@ func (m *Manager) loadLocaleFileFromFS(fs embed.FS, code, path string) error {
 	// Read the file content
 	data, err := fs.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("failed to read file %s: %v", path, err)
+		return fmt.Errorf("failed to read file %s: %w", path, err)
 	}
 
 	// Parse the TOML content

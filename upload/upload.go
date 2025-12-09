@@ -170,7 +170,7 @@ func (p *Processor) ProcessWithContext(ctx context.Context, r *http.Request, fie
 
 	// Parse multipart form
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		return nil, fmt.Errorf("failed to parse multipart form: %v", err)
+		return nil, fmt.Errorf("failed to parse multipart form: %w", err)
 	}
 
 	files := r.MultipartForm.File[fieldName]
@@ -276,7 +276,7 @@ func (p *Processor) processFile(ctx context.Context, fileHeader *multipart.FileH
 	// Open the uploaded file
 	file, err := fileHeader.Open()
 	if err != nil {
-		return Result{}, fmt.Errorf("failed to open uploaded file: %v", err)
+		return Result{}, fmt.Errorf("failed to open uploaded file: %w", err)
 	}
 	defer file.Close()
 
@@ -286,18 +286,18 @@ func (p *Processor) processFile(ctx context.Context, fileHeader *multipart.FileH
 	// Calculate checksum
 	checksum, err := p.calculateChecksum(file)
 	if err != nil {
-		return Result{}, fmt.Errorf("failed to calculate checksum: %v", err)
+		return Result{}, fmt.Errorf("failed to calculate checksum: %w", err)
 	}
 
 	// Reset file position for storage
 	if _, err := file.Seek(0, 0); err != nil {
-		return Result{}, fmt.Errorf("failed to reset file position: %v", err)
+		return Result{}, fmt.Errorf("failed to reset file position: %w", err)
 	}
 
 	// Store the file
 	path, err := p.storage.Store(filename, file)
 	if err != nil {
-		return Result{}, fmt.Errorf("failed to store file: %v", err)
+		return Result{}, fmt.Errorf("failed to store file: %w", err)
 	}
 
 	// Get the URL

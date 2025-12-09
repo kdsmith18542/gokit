@@ -68,7 +68,7 @@ func (l *LocalStorage) Store(filename string, reader io.Reader) (string, error) 
 
 	// Ensure the base directory exists
 	if err := os.MkdirAll(l.basePath, 0750); err != nil {
-		return "", fmt.Errorf("failed to create base directory: %v", err)
+		return "", fmt.Errorf("failed to create base directory: %w", err)
 	}
 
 	// Create the full file path
@@ -82,21 +82,21 @@ func (l *LocalStorage) Store(filename string, reader io.Reader) (string, error) 
 	// Ensure the directory for this file exists
 	dir := filepath.Dir(filePath)
 	if err := os.MkdirAll(dir, 0750); err != nil {
-		return "", fmt.Errorf("failed to create file directory: %v", err)
+		return "", fmt.Errorf("failed to create file directory: %w", err)
 	}
 
 	// Create the file with secure permissions
 	// #nosec G304 -- filePath is validated above to prevent path traversal
 	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
-		return "", fmt.Errorf("failed to create file: %v", err)
+		return "", fmt.Errorf("failed to create file: %w", err)
 	}
 	defer file.Close()
 
 	// Copy the content from the reader to the file
 	_, err = io.Copy(file, reader)
 	if err != nil {
-		return "", fmt.Errorf("failed to write file content: %v", err)
+		return "", fmt.Errorf("failed to write file content: %w", err)
 	}
 
 	// Return the relative path from the base path
@@ -140,7 +140,7 @@ func (l *LocalStorage) Delete(filename string) error {
 	// Delete the file
 	err := os.Remove(filePath)
 	if err != nil {
-		return fmt.Errorf("failed to delete file: %v", err)
+		return fmt.Errorf("failed to delete file: %w", err)
 	}
 
 	return nil
@@ -169,7 +169,7 @@ func (l *LocalStorage) GetSize(filename string) (int64, error) {
 	// Get file info
 	info, err := os.Stat(filePath)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get file info: %v", err)
+		return 0, fmt.Errorf("failed to get file info: %w", err)
 	}
 
 	return info.Size(), nil
@@ -204,7 +204,7 @@ func (l *LocalStorage) ListFiles() ([]string, error) {
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to list files: %v", err)
+		return nil, fmt.Errorf("failed to list files: %w", err)
 	}
 
 	return files, nil
@@ -252,7 +252,7 @@ func (l *LocalStorage) GetReader(filename string) (io.ReadCloser, error) {
 	}
 	file, err := os.Open(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %v", err)
+		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
 
 	return file, nil
@@ -287,7 +287,7 @@ func (l *LocalStorage) GetBucketInfo() (map[string]interface{}, error) {
 	})
 
 	if err != nil {
-		return info, fmt.Errorf("failed to calculate bucket info: %v", err)
+		return info, fmt.Errorf("failed to calculate bucket info: %w", err)
 	}
 
 	info["totalSize"] = totalSize
