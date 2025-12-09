@@ -1001,7 +1001,7 @@ func (m *Manager) loadLocales(path string) error {
 			localePath := filepath.Join(path, entry.Name())
 
 			if err := m.loadLocaleFile(localeCode, localePath); err != nil {
-				return fmt.Errorf("failed to load locale %s: %v", localeCode, err)
+				return fmt.Errorf("failed to load locale %s: %w", localeCode, err)
 			}
 		}
 	}

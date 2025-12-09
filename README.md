@@ -596,6 +596,36 @@ The project includes comprehensive CI/CD with:
 - Coverage reporting
 - Automated releases
 
+## Documentation
+
+- **[Security Best Practices](./docs/SECURITY_BEST_PRACTICES.md)** - Production security guidelines
+- **[Troubleshooting Guide](./docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- **[API Reference](https://pkg.go.dev/github.com/kdsmith18542/gokit)** - Complete API documentation
+- **[Examples](./examples/)** - Working code examples
+
+## Performance Tips
+
+### Form Validation
+- Order validation rules by performance (quick checks first)
+- Use caching for expensive context validators
+- Pre-compile custom regex patterns
+
+### File Uploads
+- Use resumable uploads for files > 10MB
+- Set appropriate chunk sizes (1-5MB typically optimal)
+- Pre-allocate result slices when size is known
+- Limit concurrent uploads to control memory usage
+
+### i18n
+- Load locale files once at startup
+- Cache translator instances when possible
+- Use fallback locales efficiently
+
+### General
+- Use context-aware methods for observability
+- Enable connection pooling for cloud storage
+- Monitor with OpenTelemetry metrics
+
 ## License
 
 MIT License - see LICENSE file for details.
@@ -607,6 +637,8 @@ MIT License - see LICENSE file for details.
 3. Make your changes
 4. Add tests
 5. Submit a pull request
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines.
 
 ## Roadmap
 
