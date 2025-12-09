@@ -183,7 +183,8 @@ func (p *Processor) ProcessWithContext(ctx context.Context, r *http.Request, fie
 		return nil, fmt.Errorf("too many files: %d (max: %d)", len(files), p.options.MaxFiles)
 	}
 
-	var results []Result
+	// Pre-allocate results slice for better performance
+	results := make([]Result, 0, len(files))
 
 	for _, fileHeader := range files {
 		// Notify upload start
