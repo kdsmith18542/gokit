@@ -117,7 +117,7 @@ processor := upload.NewProcessor(storage, upload.Options{
 // Also check server limits
 // http.ParseMultipartForm has a 32MB default limit
 // Increase if needed in custom handler:
-if err := r.ParseMultipartForm(100 << 20); err != nil { // 100MB
+if err := r.ParseMultipartForm(100 * 1024 * 1024); err != nil { // exactly 100MB
     // handle error
 }
 ```
