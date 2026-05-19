@@ -258,6 +258,7 @@ func DecodeAndValidateWithContext(ctx context.Context, r *http.Request, v interf
 	contentType := r.Header.Get("Content-Type")
 	if r.MultipartForm == nil && strings.Contains(contentType, "multipart/form-data") {
 		r.Body = &maxBytesReader{r: r.Body, n: 100 << 20}
+		// #nosec G120 -- request body capped by maxBytesReader wrapper above
 		if err := r.ParseMultipartForm(32 << 20); err != nil {
 			errors["_form"] = []string{"Failed to parse multipart form data"}
 			if obs := getObserver(); obs != nil {
