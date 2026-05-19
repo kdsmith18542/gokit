@@ -26,7 +26,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.23'
+        go-version: '1.26'
         cache: true
         cache-dependency-path: go.mod
 
@@ -74,7 +74,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.23'
+        go-version: '1.26'
         cache: true
         cache-dependency-path: go.mod
 
@@ -98,7 +98,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.23'
+        go-version: '1.26'
         cache: true
         cache-dependency-path: go.mod
 
@@ -121,7 +121,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.23'
+        go-version: '1.26'
         cache: true
         cache-dependency-path: go.mod
 
@@ -141,7 +141,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        go-version: ['1.23']
+        go-version: ['1.26']
         include:
           - os: ubuntu-latest
             platform: linux/amd64
@@ -192,7 +192,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.23'
+        go-version: '1.26'
         cache: true
         cache-dependency-path: go.mod
 
