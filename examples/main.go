@@ -74,6 +74,7 @@ func main() {
 
 // Handler for registration form
 func registerHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	// Extract validated form from context
 	formVal := form.ValidatedFormFromContext(r.Context())
 	userForm, ok := formVal.(*UserForm)
@@ -94,6 +95,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 
 // Handler for file upload
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	// Extract upload results from context
 	results := upload.ResultsFromContext(r.Context())
 	if results == nil || len(results) == 0 {
@@ -109,6 +111,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 // Handler for greeting with i18n
 func greetHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	translator := i18n.TranslatorFromContext(r.Context())
 	if translator == nil {
 		translator = i18n.NewManager("./examples/locales").Translator(r)

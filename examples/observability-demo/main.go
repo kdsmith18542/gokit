@@ -100,6 +100,7 @@ func main() {
 }
 
 func handleRegistration(w http.ResponseWriter, r *http.Request, i18nManager *i18n.Manager, uploadProcessor *upload.Processor) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	ctx := r.Context()
 
 	// Start a span for the entire registration process
@@ -183,6 +184,7 @@ func handleRegistration(w http.ResponseWriter, r *http.Request, i18nManager *i18
 }
 
 func handleHealth(w http.ResponseWriter, r *http.Request, i18nManager *i18n.Manager) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	ctx := r.Context()
 
 	// Start a span for health check

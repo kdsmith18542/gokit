@@ -31,6 +31,7 @@ func main() {
 }
 
 func greetHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	translator := i18n.TranslatorFromContext(r.Context())
 	if translator == nil {
 		translator = i18n.NewManager("../locales").Translator(r)

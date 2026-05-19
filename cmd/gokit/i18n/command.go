@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -308,24 +308,31 @@ func scanSourceFiles(dir string) []string {
 	var extractedKeys []string
 	seenKeys := make(map[string]bool)
 
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		fmt.Printf("Error opening root directory %s: %v\n", dir, err)
+		return nil
+	}
+	defer root.Close()
+
+	err = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if info.IsDir() {
+		if d.IsDir() {
 			return nil
 		}
-		if !strings.HasSuffix(info.Name(), ".go") {
+		if !strings.HasSuffix(d.Name(), ".go") {
 			return nil
 		}
 
-		// Validate file path before reading
-		if err := validatePath(path); err != nil {
-			fmt.Printf("Error with file path %s: %v\n", path, err)
-			return nil // Continue scanning other files
+		rel, err := filepath.Rel(dir, path)
+		if err != nil {
+			fmt.Printf("Error resolving relative path for %s: %v\n", path, err)
+			return nil
 		}
 
-		content, err := ioutil.ReadFile(path) // #nosec G304 -- Path validated by validatePath function
+		content, err := root.ReadFile(rel)
 		if err != nil {
 			fmt.Printf("Error reading file %s: %v\n", path, err)
 			return nil // Continue scanning other files
@@ -380,7 +387,7 @@ func writeKeysToFile(filepath string, keys []string, format string) error {
 	}
 
 	// Use more restrictive permissions (0600 instead of 0644)
-	return ioutil.WriteFile(filepath, data, 0600)
+	return os.WriteFile(filepath, data, 0600)
 }
 
 func findMissingKeysInTarget(source, target []string) []string {
@@ -405,7 +412,7 @@ func getKeysFromLocaleFile(filepath string) []string {
 		return nil
 	}
 
-	data, err := ioutil.ReadFile(filepath) // #nosec G304 -- Path validated by validatePath function
+	data, err := os.ReadFile(filepath) // #nosec G304 -- Path validated by validatePath function
 	if err != nil {
 		return nil
 	}
@@ -427,7 +434,7 @@ func findEmptyKeysInFile(filepath string) []string {
 		return nil
 	}
 
-	data, err := ioutil.ReadFile(filepath) // #nosec G304 -- Path validated by validatePath function
+	data, err := os.ReadFile(filepath) // #nosec G304 -- Path validated by validatePath function
 	if err != nil {
 		return nil
 	}
