@@ -60,11 +60,18 @@ func TestLocalStorage_StoreAndGet(t *testing.T) {
 }
 
 func TestLocalStorage_InvalidPath(t *testing.T) {
-	// Use a null byte in the path which is invalid on all platforms
-	storage := NewLocal("/invalid\x00path")
-	_, err := storage.Store("file.txt", strings.NewReader("data"))
+	// Create a regular file, then use it as a storage "directory" — must fail
+	f, err := os.CreateTemp("", "gokit_invalid_*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	defer os.Remove(f.Name())
+
+	storage := NewLocal(f.Name())
+	_, err = storage.Store("file.txt", strings.NewReader("data"))
 	if err == nil {
-		t.Error("Expected error for invalid storage path")
+		t.Error("Expected error when using a file as storage directory")
 	}
 }
 

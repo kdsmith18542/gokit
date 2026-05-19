@@ -590,12 +590,18 @@ func TestStorage_EdgeCases(t *testing.T) {
 // TestStorageErrorHandling tests error handling in storage backends
 func TestStorageErrorHandling(t *testing.T) {
 	t.Run("LocalStorageInvalidDirectory", func(t *testing.T) {
-		// Use null byte to make path invalid on all platforms
-		invalidDir := filepath.Join(os.TempDir(), "gokit_invalid\x00dir")
-		localStorage := NewLocal(invalidDir)
-		_, err := localStorage.Store("test.txt", strings.NewReader("test"))
+		// Create a regular file, then use it as a storage "directory" — must fail
+		f, err := os.CreateTemp("", "gokit_invalid_*")
+		if err != nil {
+			t.Fatal(err)
+		}
+		f.Close()
+		defer os.Remove(f.Name())
+
+		localStorage := NewLocal(f.Name())
+		_, err = localStorage.Store("test.txt", strings.NewReader("test"))
 		if err == nil {
-			t.Error("Expected error for invalid storage directory")
+			t.Error("Expected error when using a file as storage directory")
 		}
 	})
 
