@@ -1111,21 +1111,23 @@ func TestStorageErrorRecovery(t *testing.T) {
 // TestStorageSecurity tests security-related scenarios
 func TestStorageSecurity(t *testing.T) {
 	t.Run("LocalStorageSymlinkAttack", func(t *testing.T) {
-		localStorage := NewLocal(t.TempDir())
+		baseDir := t.TempDir()
+		localStorage := NewLocal(baseDir)
 
-		// Create a symlink to a sensitive file
+		// Create a sensitive file outside the base directory
 		sensitiveFile := filepath.Join(t.TempDir(), "sensitive.txt")
 		if err := os.WriteFile(sensitiveFile, []byte("sensitive data"), 0644); err != nil {
 			t.Fatalf("Failed to create sensitive file: %v", err)
 		}
 
-		symlinkFile := filepath.Join(t.TempDir(), "symlink.txt")
-		if err := os.Symlink(sensitiveFile, symlinkFile); err != nil {
+		// Create a symlink INSIDE the base directory pointing to the sensitive file
+		symlinkPath := filepath.Join(baseDir, "symlink.txt")
+		if err := os.Symlink(sensitiveFile, symlinkPath); err != nil {
 			t.Fatalf("Failed to create symlink for test: %v", err)
 		}
 
-		// Try to store through symlink
-		_, err := localStorage.Store(symlinkFile, strings.NewReader("malicious"))
+		// Try to store through the symlink (using just the filename, not absolute path)
+		_, err := localStorage.Store("symlink.txt", strings.NewReader("malicious"))
 		if err == nil {
 			t.Error("Expected error for symlink attack")
 		}
