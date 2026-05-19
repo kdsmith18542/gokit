@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -589,10 +590,9 @@ func TestStorage_EdgeCases(t *testing.T) {
 // TestStorageErrorHandling tests error handling in storage backends
 func TestStorageErrorHandling(t *testing.T) {
 	t.Run("LocalStorageInvalidDirectory", func(t *testing.T) {
-		// Test with invalid directory
-		invalidDir := "/invalid/path/that/does/not/exist"
+		// Use null byte to make path invalid on all platforms
+		invalidDir := filepath.Join(os.TempDir(), "gokit_invalid\x00dir")
 		localStorage := NewLocal(invalidDir)
-		// Note: NewLocal doesn't return an error, so we test the actual usage
 		_, err := localStorage.Store("test.txt", strings.NewReader("test"))
 		if err == nil {
 			t.Error("Expected error for invalid storage directory")
@@ -600,6 +600,9 @@ func TestStorageErrorHandling(t *testing.T) {
 	})
 
 	t.Run("LocalStoragePermissionDenied", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("Directory permissions do not prevent writes on Windows")
+		}
 		// Test with read-only directory
 		tempDir := t.TempDir()
 		readOnlyDir := filepath.Join(tempDir, "readonly")
@@ -705,8 +708,8 @@ func TestStorageEdgeCases(t *testing.T) {
 	t.Run("LocalStorageSpecialCharacters", func(t *testing.T) {
 		localStorage := NewLocal(t.TempDir())
 
-		// Test with special characters in filename
-		specialName := "file with spaces & special chars!@#$%^&*().txt"
+		// Use characters valid on all platforms (avoid Windows-invalid: < > : \" / \\ | ? *)
+		specialName := "file with spaces & special chars!@#%^().txt"
 		_, err := localStorage.Store(specialName, strings.NewReader("test"))
 		if err != nil {
 			t.Errorf("Expected no error storing file with special characters, got: %v", err)

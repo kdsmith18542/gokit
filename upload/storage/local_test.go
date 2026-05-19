@@ -3,6 +3,7 @@ package storage
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -59,8 +60,8 @@ func TestLocalStorage_StoreAndGet(t *testing.T) {
 }
 
 func TestLocalStorage_InvalidPath(t *testing.T) {
-	// Use an invalid directory
-	storage := NewLocal("/invalid/path/that/should/not/exist")
+	// Use a null byte in the path which is invalid on all platforms
+	storage := NewLocal("/invalid\x00path")
 	_, err := storage.Store("file.txt", strings.NewReader("data"))
 	if err == nil {
 		t.Error("Expected error for invalid storage path")
@@ -68,6 +69,9 @@ func TestLocalStorage_InvalidPath(t *testing.T) {
 }
 
 func TestLocalStorage_PermissionDenied(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("File permissions do not prevent writes on Windows")
+	}
 	dir := t.TempDir()
 	file := filepath.Join(dir, "readonly.txt")
 	if err := os.WriteFile(file, []byte("data"), 0400); err != nil {
