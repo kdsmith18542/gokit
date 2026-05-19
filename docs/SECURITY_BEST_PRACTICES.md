@@ -66,15 +66,16 @@ if err != nil {
 
 ### 4. Path Traversal Prevention
 
-GoKit's local storage already includes path traversal protection, but be aware:
+GoKit's local storage includes path traversal protection:
 
 ```go
 // LocalStorage validates:
-// - No ".." in filenames
-// - No path separators (/ or \)
+// - No ".." in filenames (path traversal blocked)
+// - All paths are resolved to absolute and checked against base directory
 // - No null bytes
 // - No control characters
 // - Refuses to write to symlinks
+// - Path separators (/, \) are allowed for scoped subpaths (e.g., resumable uploads)
 ```
 
 **Additional recommendations:**

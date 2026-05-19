@@ -200,22 +200,18 @@ processor := upload.NewProcessor(storage, upload.Options{
     MaxFileSize:      10 * 1024 * 1024, // 10MB
     AllowedMIMETypes: []string{"image/jpeg", "image/png"},
     AllowedExtensions: []string{".jpg", ".png", ".pdf"},
-    ValidateChecksum: true,
-    ChecksumAlgorithm: "sha256",
 })
 ```
 
 ### Custom Validation
 
 ```go
-processor := upload.NewProcessor(storage, upload.Options{
-    Validator: func(file *upload.File) error {
-        // Custom validation logic
-        if file.Size > 5*1024*1024 {
-            return errors.New("file too large")
-        }
-        return nil
-    },
+// Register a custom validation hook via OnSuccess/OnError hooks
+processor.OnSuccess(func(ctx context.Context, result upload.Result) {
+    // Custom post-upload validation logic
+    if result.Size > 5*1024*1024 {
+        // Handle oversized file
+    }
 })
 ```
 

@@ -25,7 +25,7 @@ A clear and concise description of what actually happened.
 
 **Environment:**
  - OS: [e.g. Ubuntu 22.04]
- - Go version: [e.g. 1.23.0]
+ - Go version: [e.g. 1.26.0]
  - GoKit version: [e.g. v1.0.0]
 
 **Additional context**
