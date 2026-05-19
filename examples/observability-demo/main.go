@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"html"
 	"log"
 	"net/http"
 	"time"
@@ -180,7 +181,7 @@ func handleRegistration(w http.ResponseWriter, r *http.Request, i18nManager *i18
 		"Name":  userForm.Name,
 		"Email": userForm.Email,
 	})
-	fmt.Fprintf(w, "%s\n", successMessage)
+	fmt.Fprintf(w, "%s\n", html.EscapeString(successMessage))
 }
 
 func handleHealth(w http.ResponseWriter, r *http.Request, i18nManager *i18n.Manager) {
@@ -217,5 +218,5 @@ func handleHealth(w http.ResponseWriter, r *http.Request, i18nManager *i18n.Mana
 		"Status": "healthy",
 		"Time":   time.Now().Format(time.RFC3339),
 	})
-	fmt.Fprintf(w, "%s\n", healthMessage)
+	fmt.Fprintf(w, "%s\n", html.EscapeString(healthMessage))
 }

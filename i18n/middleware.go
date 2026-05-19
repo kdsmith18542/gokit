@@ -385,7 +385,7 @@ func LocaleDetectorWithOptions(manager *Manager, opts LocaleDetectorOptions) fun
 					Path:     "/",
 					Secure:   true,
 					SameSite: http.SameSiteLaxMode,
-					HttpOnly: false, // Allow JavaScript access for client-side locale switching
+					HttpOnly: true,
 				})
 			}
 

@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"html"
 	"log"
 	"net/http"
 	"os"
@@ -117,5 +118,5 @@ func greetHandler(w http.ResponseWriter, r *http.Request) {
 		translator = i18n.NewManager("./examples/locales").Translator(r)
 	}
 	greeting := translator.T("welcome", map[string]interface{}{"Name": "Visitor"})
-	fmt.Fprint(w, greeting)
+	fmt.Fprint(w, html.EscapeString(greeting))
 }
