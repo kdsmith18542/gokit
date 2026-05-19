@@ -124,7 +124,7 @@ func (a *AzureBlobStorage) GetSignedURL(filename string, expiration time.Duratio
 	sasValues := sas.BlobSignatureValues{
 		ContainerName: a.container,
 		BlobName:      filename,
-		Permissions:   "r",
+		Permissions:   "w", // Write permission for upload
 		StartTime:     time.Now().Add(-5 * time.Minute),
 		ExpiryTime:    time.Now().Add(expiration),
 	}

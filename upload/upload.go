@@ -38,6 +38,7 @@ package upload
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -358,19 +359,11 @@ func (p *Processor) generateFilename(originalName string) string {
 
 // calculateChecksum calculates SHA256 checksum of a file
 func (p *Processor) calculateChecksum(reader io.Reader) (string, error) {
-	// For simplicity, we'll use a simple hash
-	// In production, you'd want to use crypto/sha256
-	data, err := io.ReadAll(reader)
-	if err != nil {
+	hash := sha256.New()
+	if _, err := io.Copy(hash, reader); err != nil {
 		return "", err
 	}
-
-	// Simple hash for demonstration
-	hash := 0
-	for _, b := range data {
-		hash = (hash*31 + int(b)) % 1000000007
-	}
-	return fmt.Sprintf("%x", hash), nil
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 // ValidateFile validates a file without storing it

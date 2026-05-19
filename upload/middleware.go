@@ -6,6 +6,7 @@ package upload
 import (
 	"context"
 	"encoding/json"
+	"html"
 	"net/http"
 )
 
@@ -364,6 +365,9 @@ func MiddlewareWithContext(processor *Processor, fieldName string, errorHandler 
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Limit request body before multipart parsing
+			r.Body = http.MaxBytesReader(w, r.Body, 100<<20) // 100 MB total limit
+
 			// Process the upload with context
 			results, err := processor.ProcessWithContext(r.Context(), r, fieldName)
 
@@ -534,7 +538,7 @@ func HTMLUploadErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
 <body>
     <h1>Upload Error</h1>
     <div class="error">
-        ` + err.Error() + `
+        ` + html.EscapeString(err.Error()) + `
     </div>
     <p><a href="javascript:history.back()">Go Back</a></p>
 </body>
@@ -602,6 +606,8 @@ func sharedUploadMiddleware(process func(*http.Request) (interface{}, error), co
 	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Limit request body to prevent memory/disk exhaustion before multipart parsing
+			r.Body = http.MaxBytesReader(w, r.Body, 100<<20) // 100 MB total limit
 			result, err := process(r)
 			if err != nil {
 				errorHandler(w, r, err)

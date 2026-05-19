@@ -35,6 +35,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -42,6 +43,9 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/kdsmith18542/gokit/i18n"
 )
+
+// localeRe validates locale codes strictly.
+var localeRe = regexp.MustCompile(`^[a-z]{2}(-[A-Z]{2})?$`)
 
 // Config configures the i18n editor behavior and connections.
 // This struct contains all the configuration needed to initialize the editor.
@@ -212,7 +216,7 @@ func (cfg Config) handleSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Save each locale file
+	// Validate and save each locale file
 	for _, locale := range data.Locales {
 		if messages, exists := data.Messages[locale]; exists {
 			if err := cfg.saveLocaleFile(locale, messages); err != nil {
@@ -237,7 +241,21 @@ func (cfg Config) handleSave(w http.ResponseWriter, r *http.Request) {
 
 // saveLocaleFile saves a locale's messages to a TOML file.
 func (cfg Config) saveLocaleFile(locale string, messages map[string]string) error {
-	filePath := filepath.Join(cfg.LocalesDir, locale+".toml")
+	if !localeRe.MatchString(locale) {
+		return fmt.Errorf("invalid locale code: %q", locale)
+	}
+
+	baseAbs, err := filepath.Abs(cfg.LocalesDir)
+	if err != nil {
+		return fmt.Errorf("failed to resolve locales dir: %v", err)
+	}
+
+	filePath := filepath.Join(baseAbs, locale+".toml")
+
+	// Ensure the resolved path is within the locales directory
+	if !strings.HasPrefix(filepath.Clean(filePath), baseAbs+string(filepath.Separator)) && filePath != baseAbs {
+		return fmt.Errorf("path traversal blocked: %s", filePath)
+	}
 
 	// Convert to TOML format
 	var buffer strings.Builder

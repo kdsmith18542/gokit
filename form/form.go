@@ -33,6 +33,7 @@ import (
 	"context"
 	"fmt"
 	"html"
+	"io"
 	"net/http"
 	"reflect"
 	"regexp"
@@ -256,6 +257,7 @@ func DecodeAndValidateWithContext(ctx context.Context, r *http.Request, v interf
 	// Parse multipart form if needed
 	contentType := r.Header.Get("Content-Type")
 	if r.MultipartForm == nil && strings.Contains(contentType, "multipart/form-data") {
+		r.Body = &maxBytesReader{r: r.Body, n: 100 << 20}
 		if err := r.ParseMultipartForm(32 << 20); err != nil {
 			errors["_form"] = []string{"Failed to parse multipart form data"}
 			if obs := getObserver(); obs != nil {
@@ -833,6 +835,36 @@ var builtinSanitizers = map[string]Sanitizer{
 		// Normalize unicode characters (NFD form)
 		return strings.ToValidUTF8(value, "")
 	},
+}
+
+// maxBytesReader is like http.MaxBytesReader but without needing a ResponseWriter.
+// It returns an error when the read limit is exceeded.
+type maxBytesReader struct {
+	r   io.ReadCloser
+	n   int64
+	err error
+}
+
+func (l *maxBytesReader) Read(p []byte) (int, error) {
+	if l.err != nil {
+		return 0, l.err
+	}
+	if int64(len(p)) > l.n {
+		p = p[:l.n]
+	}
+	n, err := l.r.Read(p)
+	l.n -= int64(n)
+	if l.n <= 0 && err == nil {
+		err = fmt.Errorf("http: request body too large")
+	}
+	if err != nil {
+		l.err = err
+	}
+	return n, err
+}
+
+func (l *maxBytesReader) Close() error {
+	return l.r.Close()
 }
 
 // Initialize built-in sanitizers and context validators

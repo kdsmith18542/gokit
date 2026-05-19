@@ -111,6 +111,11 @@ func NewResumableProcessor(storage storage.Storage, options Options) *ResumableP
 
 // InitiateUpload starts a new resumable upload session
 func (rp *ResumableProcessor) InitiateUpload(ctx context.Context, fileName string, totalSize int64, mimeType string, chunkSize int64) (*Session, error) {
+	// Validate chunk size to avoid division by zero
+	if chunkSize <= 0 {
+		return nil, fmt.Errorf("chunk size must be positive, got %d", chunkSize)
+	}
+
 	// Validate file size
 	if rp.options.MaxFileSize > 0 && totalSize > rp.options.MaxFileSize {
 		return nil, fmt.Errorf("file too large: %d bytes (max: %d)", totalSize, rp.options.MaxFileSize)
@@ -215,8 +220,8 @@ func (rp *ResumableProcessor) GetStatus(fileID string) (*Session, error) {
 		return nil, fmt.Errorf("upload session not found: %s", fileID)
 	}
 
-	session.mu.RLock()
-	defer session.mu.RUnlock()
+	session.mu.Lock()
+	defer session.mu.Unlock()
 
 	// Check if all chunks are uploaded
 	if len(session.Chunks) == session.TotalChunks {
@@ -532,6 +537,9 @@ func (rp *ResumableProcessor) cleanupChunks(fileID string) {
 	if !exists {
 		return // Session already cleaned up
 	}
+
+	session.mu.Lock()
+	defer session.mu.Unlock()
 
 	// Delete all chunk files
 	for chunkNum := range session.Chunks {

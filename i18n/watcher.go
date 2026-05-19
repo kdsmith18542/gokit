@@ -31,11 +31,9 @@ func (m *Manager) WatchLocales(dir string) error {
 				if event.Op&(fsnotify.Write|fsnotify.Create) != 0 {
 					filename := filepath.Base(event.Name)
 					if strings.HasSuffix(filename, ".json") || strings.HasSuffix(filename, ".toml") || strings.HasSuffix(filename, ".yaml") {
-						localeCode := strings.TrimSuffix(filename, filepath.Ext(filename))
-						log.Printf("[i18n] Reloading locale: %s", localeCode)
-						m.mu.Lock()
-						_ = m.loadLocaleFile(localeCode, event.Name)
-						m.mu.Unlock()
+					localeCode := strings.TrimSuffix(filename, filepath.Ext(filename))
+					log.Printf("[i18n] Reloading locale: %s", localeCode)
+					_ = m.loadLocaleFile(localeCode, event.Name)
 					}
 				}
 			case err, ok := <-watcher.Errors:

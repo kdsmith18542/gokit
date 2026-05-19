@@ -62,8 +62,8 @@ func (l *LocalStorage) Store(filename string, reader io.Reader) (string, error) 
 			return "", fmt.Errorf("filename contains control character: %q", r)
 		}
 	}
-	if strings.Contains(filename, "..") || strings.Contains(filename, "/") || strings.Contains(filename, "\\") {
-		return "", fmt.Errorf("filename contains path traversal or separator")
+	if strings.Contains(filename, "..") {
+		return "", fmt.Errorf("filename contains path traversal")
 	}
 
 	// Ensure the base directory exists
@@ -126,11 +126,29 @@ func (l *LocalStorage) GetURL(path string) string {
 	return baseURL + path
 }
 
+// safeFilePath resolves the given filename relative to basePath and enforces
+// that the result stays within basePath.
+func (l *LocalStorage) safeFilePath(filename string) (string, error) {
+	baseAbs, err := filepath.Abs(l.basePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve base path: %v", err)
+	}
+	target := filepath.Join(baseAbs, filename)
+	target = filepath.Clean(target)
+	if !strings.HasPrefix(target, baseAbs+string(filepath.Separator)) && target != baseAbs {
+		return "", fmt.Errorf("path traversal detected: %s", filename)
+	}
+	return target, nil
+}
+
 // Delete removes a file from the local storage backend.
 // The filename parameter should match the internal path returned by Store().
 // Returns an error if the file doesn't exist or cannot be deleted.
 func (l *LocalStorage) Delete(filename string) error {
-	filePath := filepath.Join(l.basePath, filename)
+	filePath, err := l.safeFilePath(filename)
+	if err != nil {
+		return err
+	}
 
 	// Check if file exists
 	if !l.Exists(filename) {
@@ -138,7 +156,7 @@ func (l *LocalStorage) Delete(filename string) error {
 	}
 
 	// Delete the file
-	err := os.Remove(filePath)
+	err = os.Remove(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to delete file: %w", err)
 	}
@@ -150,8 +168,11 @@ func (l *LocalStorage) Delete(filename string) error {
 // The filename parameter should match the internal path returned by Store().
 // Returns true if the file exists, false otherwise.
 func (l *LocalStorage) Exists(filename string) bool {
-	filePath := filepath.Join(l.basePath, filename)
-	_, err := os.Stat(filePath)
+	filePath, err := l.safeFilePath(filename)
+	if err != nil {
+		return false
+	}
+	_, err = os.Stat(filePath)
 	return err == nil
 }
 
@@ -159,7 +180,10 @@ func (l *LocalStorage) Exists(filename string) bool {
 // The filename parameter should match the internal path returned by Store().
 // Returns an error if the file doesn't exist or size cannot be determined.
 func (l *LocalStorage) GetSize(filename string) (int64, error) {
-	filePath := filepath.Join(l.basePath, filename)
+	filePath, err := l.safeFilePath(filename)
+	if err != nil {
+		return 0, err
+	}
 
 	// Check if file exists
 	if !l.Exists(filename) {
@@ -235,21 +259,18 @@ func (l *LocalStorage) GetReader(filename string) (io.ReadCloser, error) {
 		return nil, fmt.Errorf("filename cannot be empty")
 	}
 
-	// Create the full file path
-	filePath := filepath.Join(l.basePath, filename)
+	// Create the full file path with containment check
+	filePath, err := l.safeFilePath(filename)
+	if err != nil {
+		return nil, err
+	}
 
 	// Check if file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("file not found: %s", filename)
 	}
 
-	// Open the file for reading with path validation
-	if !filepath.IsAbs(filePath) {
-		filePath = filepath.Clean(filePath)
-		if strings.Contains(filePath, "..") {
-			return nil, fmt.Errorf("path traversal not allowed: %s", filePath)
-		}
-	}
+	// Open the file for reading
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)

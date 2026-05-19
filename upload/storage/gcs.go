@@ -127,7 +127,7 @@ func (g *GCSStorage) GetSignedURL(filename string, expiration time.Duration) (st
 	opts := &storage.SignedURLOptions{
 		GoogleAccessID: os.Getenv("GOOGLE_ACCESS_ID"),
 		PrivateKey:     []byte(os.Getenv("GOOGLE_PRIVATE_KEY")),
-		Method:         "GET",
+		Method:         "PUT",
 		Expires:        time.Now().Add(expiration),
 	}
 	return storage.SignedURL(g.bucket, filename, opts)
