@@ -383,6 +383,8 @@ func LocaleDetectorWithOptions(manager *Manager, opts LocaleDetectorOptions) fun
 					Value:    translator.locale.Code,
 					MaxAge:   opts.CookieMaxAge,
 					Path:     "/",
+					Secure:   true,
+					SameSite: http.SameSiteLaxMode,
 					HttpOnly: false, // Allow JavaScript access for client-side locale switching
 				})
 			}
