@@ -170,6 +170,7 @@ func (p *Processor) ProcessWithContext(ctx context.Context, r *http.Request, fie
 	start := time.Now()
 
 	// Parse multipart form
+	// #nosec G120 -- request body capped by http.MaxBytesReader in middleware layer
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		return nil, fmt.Errorf("failed to parse multipart form: %w", err)
 	}

@@ -271,7 +271,7 @@ func (rp *ResumableProcessor) CompleteUpload(ctx context.Context, fileID string)
 	session.UpdatedAt = time.Now()
 
 	// Clean up chunks
-	go rp.cleanupChunks(fileID)
+	go rp.cleanupChunks(ctx, fileID)
 
 	return &Result{
 		OriginalName: session.FileName,
@@ -294,7 +294,7 @@ func (rp *ResumableProcessor) AbortUpload(fileID string) error {
 	}
 
 	// Clean up chunks
-	go rp.cleanupChunks(fileID)
+	go rp.cleanupChunks(context.Background(), fileID)
 
 	// Remove session
 	delete(rp.sessions, fileID)
@@ -525,10 +525,8 @@ func (rp *ResumableProcessor) calculateFinalChecksum(ctx context.Context, sessio
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
-func (rp *ResumableProcessor) cleanupChunks(fileID string) {
+func (rp *ResumableProcessor) cleanupChunks(ctx context.Context, fileID string) {
 	// Clean up individual chunks after successful upload
-	ctx := context.Background()
-
 	// Get the session to know how many chunks to clean up
 	rp.mu.RLock()
 	session, exists := rp.sessions[fileID]

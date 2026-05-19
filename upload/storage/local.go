@@ -271,6 +271,7 @@ func (l *LocalStorage) GetReader(filename string) (io.ReadCloser, error) {
 	}
 
 	// Open the file for reading
+	// #nosec G304 -- path validated by safeFilePath containment check
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
