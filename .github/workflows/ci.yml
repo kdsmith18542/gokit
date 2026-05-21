@@ -37,7 +37,7 @@ jobs:
       run: go vet ./...
 
     - name: Security Scan (gosec)
-      uses: securego/gosec@master
+      uses: securego/gosec@b4f29347566880540afec8205b633d2859377cec # master
       with:
         args: ./...
 
